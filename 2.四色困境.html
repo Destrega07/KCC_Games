@@ -1,0 +1,517 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>四色困境</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+        
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 20px rgba(251, 191, 36, 0.3); }
+            50% { box-shadow: 0 0 40px rgba(251, 191, 36, 0.6); }
+        }
+        
+        @keyframes ripple {
+            0% {
+                transform: scale(0);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(4);
+                opacity: 0;
+            }
+        }
+        
+        @keyframes bounce-in {
+            0% { transform: scale(0); opacity: 0; }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .shake {
+            animation: shake 0.4s ease-in-out;
+        }
+        
+        .glow-border {
+            animation: pulse-glow 2s infinite;
+        }
+        
+        .cell {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+        }
+        
+        .cell:hover {
+            transform: scale(1.05);
+        }
+        
+        .cell:active {
+            transform: scale(0.95);
+        }
+        
+        .ripple {
+            position: absolute;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(251, 191, 36, 0.6) 0%, rgba(251, 191, 36, 0) 70%);
+            animation: ripple 0.8s ease-out;
+            pointer-events: none;
+        }
+        
+        .hint-text {
+            animation: fadeIn 0.5s ease-out;
+        }
+        
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: #fbbf24;
+            animation: confetti-fall 2s ease-out forwards;
+        }
+        
+        @keyframes confetti-fall {
+            0% {
+                transform: translateY(0) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(500px) rotate(720deg);
+                opacity: 0;
+            }
+        }
+        
+        .victory-cell {
+            animation: bounce-in 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 min-h-screen flex items-center justify-center p-4">
+    
+    <!-- 背景点击检测区域 -->
+    <div id="backgroundArea" class="fixed inset-0" style="z-index: 0;"></div>
+    
+    <!-- 主游戏容器 -->
+    <div class="relative z-10 bg-white rounded-3xl shadow-2xl p-8 max-w-lg w-full">
+        
+        <!-- 游戏标题 -->
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-gray-800 mb-2">四色困境</h1>
+            <p class="text-gray-600 text-lg">让所有方块变成同一种颜色</p>
+        </div>
+        
+        <!-- 游戏网格 -->
+        <div id="gameGrid" class="flex justify-center mb-6">
+            <div class="inline-grid grid-cols-3 gap-2 p-4 bg-gray-100 rounded-2xl">
+                <!-- 方块将通过 JavaScript 动态生成 -->
+            </div>
+        </div>
+        
+        <!-- 点击计数器 -->
+        <div class="text-center mb-6">
+            <div class="inline-block bg-gray-100 px-6 py-3 rounded-full">
+                <span class="text-gray-700 font-semibold">已点击: </span>
+                <span id="clickCount" class="text-purple-600 font-bold text-xl">0</span>
+                <span class="text-gray-700 font-semibold ml-4">剩余时间: </span>
+                <span id="timeLeft" class="text-red-600 font-bold text-xl">120</span>
+                <span class="text-gray-700 font-semibold">秒</span>
+            </div>
+        </div>
+        
+        <!-- 提示区域 -->
+        <div id="hintArea" class="text-center min-h-16 px-4">
+            <p id="hintText" class="text-gray-500 italic"></p>
+        </div>
+        
+    </div>
+    
+    <!-- 胜利弹窗 -->
+    <div id="victoryModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full transform scale-0 transition-transform duration-500" id="victoryContent">
+            <div class="text-center">
+                <div class="text-6xl mb-4">🎉</div>
+                <h2 class="text-3xl font-bold text-gray-800 mb-4">你找到了！</h2>
+                
+                <div class="bg-purple-50 rounded-xl p-6 mb-6">
+                    <p class="text-gray-700 mb-4">你用了 <span id="finalClicks" class="text-purple-600 font-bold text-xl"></span> 次点击才发现：</p>
+                    <p class="text-lg text-gray-800 font-semibold mb-2">真正的障碍不是游戏规则，</p>
+                    <p class="text-lg text-gray-800 font-semibold">而是"必须按规则玩"的假设</p>
+                </div>
+                
+                <div class="border-t-2 border-gray-200 my-6"></div>
+                
+                <div class="text-left bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl p-6 mb-6">
+                    <p class="text-center font-bold text-gray-800 mb-4 text-lg">启示</p>
+                    
+                    <div class="mb-4">
+                        <div class="flex items-start mb-2">
+                            <span class="text-red-500 text-xl mr-2">❌</span>
+                            <div>
+                                <p class="font-semibold text-gray-700">博弈思维</p>
+                                <p class="text-gray-600 text-sm">"你的每个动作都会改变环境，只有把环境的变化趋势看清，才可能精准命中目标"</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <div class="flex items-start">
+                            <span class="text-green-500 text-xl mr-2">✅</span>
+                            <div>
+                                <p class="font-semibold text-gray-700">创新思维</p>
+                                <p class="text-gray-600 text-sm">"跳出博弈系统，差异化创新，能让你优雅通关"</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex gap-4">
+                    <button onclick="restartGame()" class="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-xl transition-colors">
+                        再玩一次
+                    </button>
+                    <button onclick="continueTraining()" class="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-semibold py-3 px-6 rounded-xl transition-colors">
+                        继续培训
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 失败弹窗 -->
+    <div id="failModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full transform scale-0 transition-transform duration-500" id="failContent">
+            <div class="text-center">
+                <div class="text-6xl mb-4">😔</div>
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">时间到！</h2>
+                
+                <div class="bg-red-50 rounded-xl p-6 mb-6">
+                    <p class="text-gray-700 text-lg leading-relaxed">
+                        很遗憾，没有通过这次考验。<br>
+                        相信你认真听课，终将通关！
+                    </p>
+                </div>
+                
+                <button onclick="restartGame()" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-xl transition-colors">
+                    再试一次
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 游戏状态
+        let state = {
+            grid: [
+                ['red', 'blue', 'yellow'],
+                ['green', 'red', 'blue'],
+                ['yellow', 'green', 'red']
+            ],
+            clickCount: 0,
+            startTime: Date.now(),
+            timeLeft: 120,
+            solved: false,
+            timerInterval: null,
+            hints30Shown: false,
+            hints60Shown: false
+        };
+        
+        // 颜色映射
+        const colorMap = {
+            'red': '#EF4444',
+            'blue': '#3B82F6',
+            'yellow': '#FBBF24',
+            'green': '#10B981',
+            'gold': '#F59E0B'
+        };
+        
+        // 颜色循环
+        const colorCycle = ['red', 'blue', 'yellow', 'green'];
+        
+        // 初始化游戏
+        function initGame() {
+            renderGrid();
+            setupEventListeners();
+            startTimer();
+        }
+        
+        // 渲染网格
+        function renderGrid() {
+            const gridContainer = document.querySelector('#gameGrid .inline-grid');
+            gridContainer.innerHTML = '';
+            
+            state.grid.forEach((row, i) => {
+                row.forEach((color, j) => {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell w-20 h-20 md:w-24 md:h-24 rounded-xl shadow-lg';
+                    cell.style.backgroundColor = colorMap[color];
+                    cell.dataset.row = i;
+                    cell.dataset.col = j;
+                    cell.onclick = () => onCellClick(i, j);
+                    gridContainer.appendChild(cell);
+                });
+            });
+        }
+        
+        // 设置事件监听
+        function setupEventListeners() {
+            document.getElementById('backgroundArea').addEventListener('click', onBackgroundClick);
+        }
+        
+        // 开始计时器
+        function startTimer() {
+            state.timerInterval = setInterval(() => {
+                state.timeLeft--;
+                document.getElementById('timeLeft').textContent = state.timeLeft;
+                
+                // 30秒提示
+                if (state.timeLeft === 90 && !state.hints30Shown) {
+                    showHint("试过几次了？也许问题不在方块上...", false);
+                    state.hints30Shown = true;
+                }
+                
+                // 60秒提示
+                if (state.timeLeft === 60 && !state.hints60Shown) {
+                    showHint("💡 有时候，离开战场才能看清战局", true);
+                    state.hints60Shown = true;
+                }
+                
+                // 时间到
+                if (state.timeLeft <= 0) {
+                    clearInterval(state.timerInterval);
+                    if (!state.solved) {
+                        showFailModal();
+                    }
+                }
+            }, 1000);
+        }
+        
+        // 方块点击
+        function onCellClick(row, col) {
+            if (state.solved) return;
+            
+            state.clickCount++;
+            document.getElementById('clickCount').textContent = state.clickCount;
+            
+            // 改变颜色
+            changeColor(row, col);
+            changeAdjacentColors(row, col);
+            
+            // 抖动效果（点击5次以上）
+            if (state.clickCount >= 5 && state.clickCount % 5 === 0) {
+                shakeGrid();
+            }
+            
+            // 10次点击提示
+            if (state.clickCount === 10) {
+                showHint("🤔 换个角度试试？", false);
+            }
+        }
+        
+        // 改变单个方块颜色
+        function changeColor(row, col) {
+            const currentColor = state.grid[row][col];
+            const currentIndex = colorCycle.indexOf(currentColor);
+            const nextIndex = (currentIndex + 1) % colorCycle.length;
+            state.grid[row][col] = colorCycle[nextIndex];
+            
+            updateCellColor(row, col);
+        }
+        
+        // 改变相邻方块颜色
+        function changeAdjacentColors(row, col) {
+            const adjacent = [
+                [row - 1, col], // 上
+                [row + 1, col], // 下
+                [row, col - 1], // 左
+                [row, col + 1]  // 右
+            ];
+            
+            adjacent.forEach(([r, c]) => {
+                if (r >= 0 && r < 3 && c >= 0 && c < 3) {
+                    const currentColor = state.grid[r][c];
+                    const currentIndex = colorCycle.indexOf(currentColor);
+                    const nextIndex = (currentIndex + 1) % colorCycle.length;
+                    state.grid[r][c] = colorCycle[nextIndex];
+                    updateCellColor(r, c);
+                }
+            });
+        }
+        
+        // 更新方块颜色显示
+        function updateCellColor(row, col) {
+            const cell = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+            cell.style.backgroundColor = colorMap[state.grid[row][col]];
+        }
+        
+        // 背景点击（正确答案）
+        function onBackgroundClick(event) {
+            if (state.solved) return;
+            
+            // 创建波纹效果
+            createRipple(event.clientX, event.clientY);
+            
+            // 触发胜利
+            setTimeout(() => {
+                triggerVictory();
+            }, 400);
+        }
+        
+        // 创建波纹效果
+        function createRipple(x, y) {
+            const ripple = document.createElement('div');
+            ripple.className = 'ripple';
+            ripple.style.left = x + 'px';
+            ripple.style.top = y + 'px';
+            ripple.style.width = '100px';
+            ripple.style.height = '100px';
+            ripple.style.marginLeft = '-50px';
+            ripple.style.marginTop = '-50px';
+            document.body.appendChild(ripple);
+            
+            setTimeout(() => ripple.remove(), 800);
+        }
+        
+        // 触发胜利
+        function triggerVictory() {
+            state.solved = true;
+            clearInterval(state.timerInterval);
+            
+            // 所有方块变金色
+            const cells = document.querySelectorAll('.cell');
+            cells.forEach((cell, index) => {
+                setTimeout(() => {
+                    cell.classList.add('victory-cell');
+                    cell.style.backgroundColor = colorMap['gold'];
+                }, index * 50);
+            });
+            
+            // 创建五彩纸屑
+            setTimeout(() => {
+                createConfetti();
+                showVictoryModal();
+            }, 500);
+        }
+        
+        // 创建五彩纸屑
+        function createConfetti() {
+            const colors = ['#EF4444', '#3B82F6', '#FBBF24', '#10B981', '#F59E0B'];
+            for (let i = 0; i < 50; i++) {
+                setTimeout(() => {
+                    const confetti = document.createElement('div');
+                    confetti.className = 'confetti';
+                    confetti.style.left = Math.random() * window.innerWidth + 'px';
+                    confetti.style.top = '-10px';
+                    confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                    confetti.style.animationDelay = Math.random() * 0.3 + 's';
+                    confetti.style.animationDuration = (Math.random() * 1 + 1.5) + 's';
+                    document.body.appendChild(confetti);
+                    
+                    setTimeout(() => confetti.remove(), 3000);
+                }, i * 30);
+            }
+        }
+        
+        // 抖动网格
+        function shakeGrid() {
+            const grid = document.querySelector('#gameGrid .inline-grid');
+            grid.classList.add('shake');
+            setTimeout(() => grid.classList.remove('shake'), 400);
+        }
+        
+        // 显示提示
+        function showHint(text, addGlow) {
+            const hintText = document.getElementById('hintText');
+            hintText.textContent = text;
+            hintText.classList.add('hint-text');
+            
+            if (addGlow) {
+                document.getElementById('backgroundArea').classList.add('glow-border');
+            }
+        }
+        
+        // 显示胜利弹窗
+        function showVictoryModal() {
+            document.getElementById('finalClicks').textContent = state.clickCount;
+            const modal = document.getElementById('victoryModal');
+            const content = document.getElementById('victoryContent');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            setTimeout(() => {
+                content.style.transform = 'scale(1)';
+            }, 10);
+        }
+        
+        // 显示失败弹窗
+        function showFailModal() {
+            const modal = document.getElementById('failModal');
+            const content = document.getElementById('failContent');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            setTimeout(() => {
+                content.style.transform = 'scale(1)';
+            }, 10);
+        }
+        
+        // 重新开始游戏
+        function restartGame() {
+            // 重置状态
+            state = {
+                grid: [
+                    ['red', 'blue', 'yellow'],
+                    ['green', 'red', 'blue'],
+                    ['yellow', 'green', 'red']
+                ],
+                clickCount: 0,
+                startTime: Date.now(),
+                timeLeft: 120,
+                solved: false,
+                timerInterval: null,
+                hints30Shown: false,
+                hints60Shown: false
+            };
+            
+            // 隐藏弹窗
+            document.getElementById('victoryModal').classList.add('hidden');
+            document.getElementById('victoryModal').classList.remove('flex');
+            document.getElementById('failModal').classList.add('hidden');
+            document.getElementById('failModal').classList.remove('flex');
+            document.getElementById('victoryContent').style.transform = 'scale(0)';
+            document.getElementById('failContent').style.transform = 'scale(0)';
+            
+            // 重置显示
+            document.getElementById('clickCount').textContent = '0';
+            document.getElementById('timeLeft').textContent = '120';
+            document.getElementById('hintText').textContent = '';
+            document.getElementById('backgroundArea').classList.remove('glow-border');
+            
+            // 重新渲染
+            renderGrid();
+            startTimer();
+        }
+        
+        // 继续培训（关闭弹窗）
+        function continueTraining() {
+            const modal = document.getElementById('victoryModal');
+            const content = document.getElementById('victoryContent');
+            content.style.transform = 'scale(0)';
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }, 300);
+        }
+        
+        // 页面加载时初始化
+        window.onload = initGame;
+    </script>
+</body>
+</html>

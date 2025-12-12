@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>九星迷阵</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes scaleUp {
+            from { transform: scale(0); }
+            to { transform: scale(1); }
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
+        @keyframes starTwinkle {
+            0%, 100% { transform: scale(1) rotate(0deg); opacity: 1; }
+            50% { transform: scale(1.2) rotate(180deg); opacity: 0.8; }
+        }
+        
+        @keyframes trophy-bounce {
+            0%, 100% { transform: translateY(0) scale(1); }
+            25% { transform: translateY(-20px) scale(1.1); }
+            50% { transform: translateY(0) scale(1); }
+            75% { transform: translateY(-10px) scale(1.05); }
+        }
+        
+        @keyframes shine {
+            0% { background-position: -200px; }
+            100% { background-position: 200px; }
+        }
+        
+        .hint-text {
+            animation: fadeIn 0.5s ease-out;
+        }
+        
+        .star-twinkle {
+            animation: starTinkle 0.6s ease-in-out;
+        }
+        
+        .trophy {
+            animation: trophy-bounce 1s ease-in-out;
+        }
+        
+        .shine-effect {
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.8), transparent);
+            background-size: 200px 100%;
+            animation: shine 2s infinite;
+        }
+        
+        canvas {
+            cursor: crosshair;
+            touch-action: none;
+        }
+        
+        .canvas-container {
+            transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        
+        .challenge-badge {
+            animation: pulse 2s infinite;
+        }
+        @keyframes glowPulse {
+            0% { text-shadow: 0 0 10px rgba(255, 193, 7, 0.6), 0 0 20px rgba(255, 193, 7, 0.4); }
+            100% { text-shadow: 0 0 30px rgba(255, 193, 7, 0.9), 0 0 60px rgba(255, 193, 7, 0.6); }
+        }
+        .trophy-glow { animation: glowPulse 1.2s ease-in-out infinite; }
+        .zoom-controls { position:absolute; right:12px; bottom:12px; display:flex; gap:8px; z-index:5; }
+        .zoom-btn { width:40px; height:40px; border-radius:10px; background:#f3f4f6; box-shadow:0 2px 6px rgba(0,0,0,0.15); display:flex; align-items:center; justify-content:center; }
+        .zoom-btn:active { transform:scale(0.95); }
+        .zoom-icon { width:22px; height:22px; color:#374151; }
+        @media (max-width: 640px) {
+            #gameCanvas { height: 320px; }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 min-h-screen flex items-center justify-center p-4">
+    
+    <!-- 主游戏容器 -->
+    <div class="relative z-10 bg-white rounded-3xl shadow-2xl p-8 max-w-2xl w-full">
+        
+        <!-- 游戏标题 -->
+        <div class="text-center mb-6">
+            <h1 class="text-4xl font-bold text-gray-800 mb-2">九星迷阵</h1>
+            <p class="text-gray-600 text-lg mb-2">请你用<span class="text-red-600 font-bold">一笔不多于4条直线</span>连接图中的9颗星</p>
+            <p class="text-gray-500 text-sm">"一笔" 是指运笔过程中不能停顿，不能 "回头"</p>
+        </div>
+        
+        <!-- 状态栏 -->
+        <div class="flex justify-between items-center mb-4 bg-gray-100 rounded-xl p-4">
+            <div>
+                <span class="text-gray-700 font-semibold">已用直线: </span>
+                <span id="strokeCount" class="text-purple-600 font-bold text-xl">0</span>
+                <span class="text-gray-700 font-semibold"> / 4</span>
+            </div>
+            <div>
+                <span class="text-gray-700 font-semibold">剩余时间: </span>
+                <span id="timeLeft" class="text-red-600 font-bold text-xl">120</span>
+                <span class="text-gray-700 font-semibold">秒</span>
+            </div>
+        </div>
+        
+        <!-- 挑战徽章（完成第一种解法后显示） -->
+        <div id="challengeBadge" class="hidden mb-4 bg-gradient-to-r from-amber-400 to-orange-500 rounded-xl p-3 text-center challenge-badge">
+            <p class="text-white font-bold text-lg">🏆 解题成功，挑战新高 🏆</p>
+        </div>
+        
+        <!-- Canvas 画布容器 -->
+        <div class="flex justify-center mb-4">
+            <div class="canvas-container relative" id="canvasContainer">
+                <canvas id="gameCanvas" width="500" height="500" class="border-4 border-gray-300 rounded-xl shadow-lg bg-white"></canvas>
+                <!-- 缩放提示层 -->
+                <div id="scaleHint" class="absolute inset-0 pointer-events-none hidden">
+                    <div class="absolute inset-0 bg-blue-100 bg-opacity-20 rounded-xl animate-pulse"></div>
+                </div>
+                <div class="zoom-controls">
+                    <button id="zoomOutBtn" class="zoom-btn" title="缩小">
+                        <svg class="zoom-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="7"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                            <line x1="8" y1="11" x2="14" y2="11"></line>
+                        </svg>
+                    </button>
+                    <button id="zoomInBtn" class="zoom-btn" title="放大">
+                        <svg class="zoom-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="7"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                            <line x1="11" y1="8" x2="11" y2="14"></line>
+                            <line x1="8" y1="11" x2="14" y2="11"></line>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 操作提示 -->
+        <div class="text-center mb-4">
+            <button onclick="clearCanvas()" class="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-6 rounded-lg transition-colors mr-2">
+                清除重画
+            </button>
+            <button onclick="undoLastStroke()" class="bg-gray-500 hover:bg-gray-600 text-white font-semibold py-2 px-6 rounded-lg transition-colors">
+                撤销上一笔
+            </button>
+        </div>
+        
+        <!-- 提示区域 -->
+        <div id="hintArea" class="text-center min-h-12 px-4">
+            <p id="hintText" class="text-gray-500 italic"></p>
+        </div>
+        
+    </div>
+    
+    <!-- 第一次成功弹窗 -->
+    <div id="firstVictoryModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full transform scale-0 transition-transform duration-500" id="firstVictoryContent">
+            <div class="text-center">
+                <div class="text-6xl mb-4">🎉</div>
+                <h2 class="text-3xl font-bold text-gray-800 mb-4">恭喜你，解题成功！</h2>
+                
+                <div class="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-6 mb-6">
+                    <p class="text-lg text-gray-800 leading-relaxed">
+                        此题其实还有<span class="text-purple-600 font-bold">更高明的解法</span>，<br>
+                        要不要继续挑战自己？
+                    </p>
+                </div>
+                
+                <div class="flex gap-4">
+                    <button onclick="acceptChallenge()" class="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold py-3 px-6 rounded-xl transition-all transform hover:scale-105">
+                        接受挑战
+                    </button>
+                    <button onclick="declineChallenge()" class="flex-1 bg-gray-500 hover:bg-gray-600 text-white font-semibold py-3 px-6 rounded-xl transition-colors">
+                        结束游戏
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="bestSolutionModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full transform scale-0 transition-transform duration-500" id="bestSolutionContent">
+            <div class="text-center">
+                <div class="text-6xl mb-4">🌟</div>
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">恭喜你，一次性找到最优解法</h2>
+                <p class="text-lg text-gray-800 leading-relaxed mb-6">你的洞察力令人敬佩</p>
+                <button onclick="elegantWin()" class="mx-auto block bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-500 hover:to-yellow-600 text-white font-semibold py-3 px-6 rounded-xl transition-all transform hover:scale-105">优雅通关</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 终极成功弹窗（双解法） -->
+    <div id="ultimateVictoryModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full transform scale-0 transition-transform duration-500" id="ultimateVictoryContent">
+            <div class="text-center">
+                <!-- 奖杯动画 -->
+                <div class="text-8xl mb-4 trophy">🏆</div>
+                <div class="mb-4">
+                    <div class="inline-block bg-gradient-to-r from-yellow-400 via-amber-500 to-orange-500 text-white font-bold py-2 px-6 rounded-full shine-effect">
+                        万里挑一
+                    </div>
+                </div>
+                
+                <h2 class="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600 mb-6">
+                    "高手" 称号实至名归
+                </h2>
+                
+                <div class="bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl p-6 mb-6 border-2 border-amber-300">
+                    <p class="text-lg text-gray-800 leading-relaxed">
+                        你有<span class="text-amber-600 font-bold">万里挑一</span>的洞察力<br>
+                        和<span class="text-orange-600 font-bold">升维解题</span>的思考力
+                    </p>
+                </div>
+                
+                <div class="bg-gray-50 rounded-xl p-4 mb-6">
+                    <p class="text-sm text-gray-600 mb-2">你的成绩</p>
+                    <div class="flex justify-around">
+                        <div>
+                            <p class="text-2xl font-bold text-purple-600" id="finalTime">--</p>
+                            <p class="text-xs text-gray-500">用时</p>
+                        </div>
+                        <div>
+                            <p class="text-2xl font-bold text-green-600">2/2</p>
+                            <p class="text-xs text-gray-500">解法</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <button onclick="restartGame()" class="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold py-3 px-6 rounded-xl transition-all transform hover:scale-105">
+                    再玩一次
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 时间到弹窗 -->
+    <div id="timeoutModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full transform scale-0 transition-transform duration-500" id="timeoutContent">
+            <div class="text-center">
+                <div class="text-6xl mb-4">⏰</div>
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">时间到！</h2>
+                
+                <div class="bg-blue-50 rounded-xl p-6 mb-6">
+                    <p class="text-gray-700 text-lg leading-relaxed">
+                        很遗憾，没有在限时内完成挑战。<br>
+                        相信你认真听课，终将通关！
+                    </p>
+                </div>
+                
+                <button onclick="restartGame()" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-xl transition-colors">
+                    再试一次
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 游戏状态
+        let state = {
+            canvas: null,
+            ctx: null,
+            stars: [],
+            strokes: [],
+            currentStroke: null,
+            isDrawing: false,
+            clickCount: 0,
+            startTime: Date.now(),
+            timeLeft: 120,
+            timerInterval: null,
+            isScaled: false,
+            scaleLevels: [0.2, 0.5, 1, 1.2],
+            scaleIndex: 2,
+            scaleFactor: 1,
+            solution1Complete: false, // 延长线解法
+            solution2Complete: false, // 缩放解法
+            lastClickTime: 0,
+            lastTapTime: 0,
+            lastTapPos: null,
+            hint60Shown: false,
+            containerScale: 1
+        };
+        
+        // 星星原始位置（3x3网格）
+        const originalStarPositions = [
+            {x: 200, y: 100}, {x: 250, y: 100}, {x: 300, y: 100},
+            {x: 200, y: 150}, {x: 250, y: 150}, {x: 300, y: 150},
+            {x: 200, y: 200}, {x: 250, y: 200}, {x: 300, y: 200}
+        ];
+        
+        // 初始化游戏
+        function initGame() {
+            state.canvas = document.getElementById('gameCanvas');
+            state.ctx = state.canvas.getContext('2d');
+            
+            // 初始化星星位置
+            resetStars();
+            
+            // 绘制初始状态
+            drawCanvas();
+            
+            // 设置事件监听
+            setupEventListeners();
+            
+            // 开始计时
+            startTimer();
+            bindZoomButtons();
+        }
+        
+        // 重置星星位置
+        function resetStars() {
+            const scaled = originalStarPositions.map(pos => ({
+                x: pos.x * state.scaleFactor,
+                y: pos.y * state.scaleFactor
+            }));
+            const xs = scaled.map(s => s.x);
+            const ys = scaled.map(s => s.y);
+            const minX = Math.min.apply(null, xs);
+            const maxX = Math.max.apply(null, xs);
+            const minY = Math.min.apply(null, ys);
+            const maxY = Math.max.apply(null, ys);
+            const cx = (minX + maxX) / 2;
+            const cy = (minY + maxY) / 2;
+            const targetCx = state.isScaled ? 250 : state.canvas.width / 2;
+            const targetCy = state.isScaled ? 250 : state.canvas.height / 2;
+            const ox = targetCx - cx;
+            const oy = targetCy - cy;
+            state.stars = scaled.map(s => ({ x: s.x + ox, y: s.y + oy }));
+        }
+        
+        // 设置事件监听
+        function setupEventListeners() {
+            const canvas = state.canvas;
+            
+            // 鼠标事件
+            canvas.addEventListener('mousedown', handleStart);
+            canvas.addEventListener('mousemove', handleMove);
+            canvas.addEventListener('mouseup', handleEnd);
+            canvas.addEventListener('mouseleave', handleEnd);
+            
+            // 触摸事件
+            canvas.addEventListener('touchstart', handleStart);
+            canvas.addEventListener('touchmove', handleMove);
+            canvas.addEventListener('touchend', handleEnd);
+            
+            // 移除双击缩放，改为按钮控制
+        }
+        
+        // 处理双击缩放
+        function handleBackgroundClick(e) {
+            const now = Date.now();
+            const isDoubleClick = (now - state.lastClickTime) < 300;
+            state.lastClickTime = now;
+            
+            if (isDoubleClick && !state.isDrawing) {
+                const rect = state.canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                // 检查是否点击在星星区域外
+                const clickedOnStar = state.stars.some(star => {
+                    const dx = x - star.x;
+                    const dy = y - star.y;
+                    return Math.sqrt(dx * dx + dy * dy) < 15;
+                });
+                
+                if (!clickedOnStar) {
+                    toggleScale();
+                }
+            }
+        }
+        
+        // 切换缩放
+        function setScaleIndex(idx) {
+            state.scaleIndex = Math.max(0, Math.min(state.scaleLevels.length - 1, idx));
+            state.scaleFactor = state.scaleLevels[state.scaleIndex];
+            state.isScaled = (state.scaleFactor === 0.2);
+            resetStars();
+            state.strokes = [];
+            state.currentStroke = null;
+            updateStrokeCount();
+            drawCanvas();
+        }
+        function zoomIn() { setScaleIndex(state.scaleIndex + 1); }
+        function zoomOut() { setScaleIndex(state.scaleIndex - 1); }
+        function bindZoomButtons() {
+            document.getElementById('zoomInBtn').addEventListener('click', zoomIn);
+            document.getElementById('zoomOutBtn').addEventListener('click', zoomOut);
+        }
+        
+        // 开始绘制
+        function handleStart(e) {
+            e.preventDefault();
+            state.isDrawing = true;
+            
+            const pos = getMousePos(e);
+            state.currentStroke = {
+                points: [pos],
+                complete: false
+            };
+            state.lastTapPos = pos;
+        }
+        
+        // 移动绘制
+        function handleMove(e) {
+            if (!state.isDrawing) return;
+            e.preventDefault();
+            
+            const pos = getMousePos(e);
+            state.currentStroke.points.push(pos);
+            
+            drawCanvas();
+        }
+        
+        // 结束绘制
+        function handleEnd(e) {
+            if (!state.isDrawing) return;
+            e.preventDefault();
+            
+            state.isDrawing = false;
+            
+            if (state.currentStroke && state.currentStroke.points.length > 1) {
+                state.currentStroke.complete = true;
+                state.strokes.push(state.currentStroke);
+                state.currentStroke = null;
+                
+                updateStrokeCount();
+                checkVictory();
+                
+                if (getTotalSegments() > 4) {
+                    setTimeout(() => { alert('超过4条直线了！请清除重画'); }, 100);
+                }
+            } else {
+                const pos = getMousePos(e);
+                const now = Date.now();
+                const isDoubleTap = (now - state.lastTapTime) < 300 && state.lastTapPos && Math.hypot(pos.x - state.lastTapPos.x, pos.y - state.lastTapPos.y) < 20;
+                state.lastTapTime = now;
+                state.lastTapPos = pos;
+                if (isDoubleTap) {
+                    const clickedOnStar = state.stars.some(star => Math.hypot(pos.x - star.x, pos.y - star.y) < 15);
+                    if (!clickedOnStar) toggleScale();
+                }
+            }
+            
+            drawCanvas();
+        }
+        
+        // 获取鼠标/触摸位置
+        function getMousePos(e) {
+            const rect = state.canvas.getBoundingClientRect();
+            const clientX = (e.clientX != null ? e.clientX : (e.touches && e.touches[0].clientX) || (e.changedTouches && e.changedTouches[0].clientX));
+            const clientY = (e.clientY != null ? e.clientY : (e.touches && e.touches[0].clientY) || (e.changedTouches && e.changedTouches[0].clientY));
+            const scaleX = state.canvas.width / rect.width;
+            const scaleY = state.canvas.height / rect.height;
+            return {
+                x: (clientX - rect.left) * scaleX,
+                y: (clientY - rect.top) * scaleY
+            };
+        }
+        
+        // 绘制画布
+        function drawCanvas() {
+            const ctx = state.ctx;
+            const canvas = state.canvas;
+            
+            // 清空画布
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // 绘制延伸区域提示（浅色边界）
+            if (state.hint60Shown && !state.isScaled) {
+                ctx.strokeStyle = 'rgba(200, 200, 200, 0.3)';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 5]);
+                ctx.strokeRect(50, 50, 400, 400);
+                ctx.setLineDash([]);
+            }
+            
+            // 绘制已完成的线条
+            state.strokes.forEach(stroke => {
+                drawStroke(stroke, '#8B5CF6', 3);
+            });
+            
+            // 绘制当前正在画的线条
+            if (state.currentStroke) {
+                drawStroke(state.currentStroke, '#EC4899', 3);
+            }
+            
+            // 绘制星星
+            state.stars.forEach(star => {
+                drawStar(star.x, star.y, state.isScaled ? 3 : 8);
+            });
+        }
+        
+        // 绘制线条
+        function drawStroke(stroke, color, width) {
+            if (stroke.points.length < 2) return;
+            
+            const ctx = state.ctx;
+            ctx.strokeStyle = color;
+            ctx.lineWidth = (state.scaleFactor === 0.2) ? width * 15 : width;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            
+            ctx.beginPath();
+            ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+            
+            for (let i = 1; i < stroke.points.length; i++) {
+                ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
+            }
+            
+            ctx.stroke();
+        }
+        
+        // 绘制星星
+        function drawStar(cx, cy, size) {
+            const ctx = state.ctx;
+            const spikes = 4;
+            const outerRadius = size;
+            const innerRadius = size * 0.4;
+            
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.rotate(Math.PI / 4);
+            
+            ctx.beginPath();
+            for (let i = 0; i < spikes * 2; i++) {
+                const radius = i % 2 === 0 ? outerRadius : innerRadius;
+                const angle = (Math.PI / spikes) * i;
+                const x = Math.cos(angle) * radius;
+                const y = Math.sin(angle) * radius;
+                
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            }
+            ctx.closePath();
+            
+            // 渐变填充
+            const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, outerRadius);
+            gradient.addColorStop(0, '#4F46E5');
+            gradient.addColorStop(1, '#7C3AED');
+            
+            ctx.fillStyle = gradient;
+            ctx.fill();
+            
+            ctx.strokeStyle = '#FFFFFF';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+            
+            ctx.restore();
+        }
+        
+        // 更新笔画计数
+        function updateStrokeCount() {
+            document.getElementById('strokeCount').textContent = getTotalSegments();
+        }
+        
+        // 清除画布
+        function clearCanvas() {
+            state.strokes = [];
+            state.currentStroke = null;
+            updateStrokeCount();
+            drawCanvas();
+        }
+        
+        // 撤销上一笔
+        function undoLastStroke() {
+            if (state.strokes.length > 0) {
+                state.strokes.pop();
+                updateStrokeCount();
+                drawCanvas();
+            }
+        }
+        
+        // 检查胜利条件
+        function checkVictory() {
+            if (state.strokes.length === 0 || getTotalSegments() > 4) return;
+            
+            // 检查是否所有星星都被线条穿过
+            const allStarsCovered = state.stars.every(star => {
+                return state.strokes.some(stroke => isStarOnStroke(star, stroke));
+            });
+            
+            if (!allStarsCovered) return;
+            
+            // 判断是哪种解法
+            if ((state.scaleFactor === 0.2) && getTotalSegments() === 1) {
+                // 缩放解法（第二种解法）
+                if (!state.solution2Complete) {
+                    state.solution2Complete = true;
+                    
+                    if (state.solution1Complete) {
+                        // 两种解法都完成
+                        setTimeout(() => showUltimateVictory(), 300);
+                    } else {
+                        // 只完成了缩放解法
+                        setTimeout(() => showBestSolutionVictory(), 300);
+                    }
+                }
+            } else if ((state.scaleFactor !== 0.2) && getTotalSegments() <= 4) {
+                // 延长线解法（第一种解法）
+                if (!state.solution1Complete) {
+                    state.solution1Complete = true;
+                    
+                    if (state.solution2Complete) {
+                        // 两种解法都完成
+                        setTimeout(() => showUltimateVictory(), 300);
+                    } else {
+                        // 只完成了延长线解法
+                        setTimeout(() => showFirstVictory(), 300);
+                    }
+                }
+            }
+        }
+
+        function getTotalSegments() {
+            let total = 0;
+            for (const s of state.strokes) total += countSegments(s);
+            return total;
+        }
+        function rdp(points, epsilon) {
+            if (points.length < 3) return points.slice();
+            const dmaxInfo = (pts, i1, i2) => {
+                const a = pts[i1], b = pts[i2];
+                let idx = -1, dmax = 0;
+                const ax = b.x - a.x, ay = b.y - a.y;
+                const len2 = ax*ax + ay*ay || 1;
+                for (let i = i1 + 1; i < i2; i++) {
+                    const px = pts[i].x - a.x, py = pts[i].y - a.y;
+                    const t = (px*ax + py*ay) / len2;
+                    const ex = a.x + t*ax, ey = a.y + t*ay;
+                    const dx = pts[i].x - ex, dy = pts[i].y - ey;
+                    const d = Math.hypot(dx, dy);
+                    if (d > dmax) { dmax = d; idx = i; }
+                }
+                return { idx, dmax };
+            };
+            const simplify = (pts, i1, i2, eps, out) => {
+                const { idx, dmax } = dmaxInfo(pts, i1, i2);
+                if (dmax > eps && idx !== -1) {
+                    simplify(pts, i1, idx, eps, out);
+                    simplify(pts, idx, i2, eps, out);
+                } else {
+                    out.push(pts[i1]);
+                    out.push(pts[i2]);
+                }
+            };
+            const out = [];
+            simplify(points, 0, points.length - 1, epsilon, out);
+            const result = [out[0]];
+            for (let i = 1; i < out.length; i++) {
+                const p = out[i];
+                const last = result[result.length - 1];
+                if (p.x !== last.x || p.y !== last.y) result.push(p);
+            }
+            return result;
+        }
+        function countSegments(stroke) {
+            const pts = stroke.points;
+            if (!pts || pts.length < 2) return 0;
+            const epsilon = state.isScaled ? 30 : 8;
+            const simplified = rdp(pts, epsilon);
+            if (simplified.length < 2) return 0;
+            let segments = 1;
+            let prev = simplified[1];
+            let prevAngle = Math.atan2(prev.y - simplified[0].y, prev.x - simplified[0].x);
+            let accLen = Math.hypot(prev.x - simplified[0].x, prev.y - simplified[0].y);
+            const angleThreshold = 0.35;
+            const minLen = state.isScaled ? 60 : 40;
+            for (let i = 2; i < simplified.length; i++) {
+                const a = Math.atan2(simplified[i].y - prev.y, simplified[i].x - prev.x);
+                const diff = Math.abs(a - prevAngle);
+                const adiff = Math.min(diff, Math.abs(diff - Math.PI * 2));
+                const len = Math.hypot(simplified[i].x - prev.x, simplified[i].y - prev.y);
+                accLen += len;
+                if (adiff > angleThreshold && accLen > minLen) {
+                    segments++;
+                    prevAngle = a;
+                    accLen = 0;
+                } else {
+                    prevAngle = (prevAngle * 0.8) + (a * 0.2);
+                }
+                prev = simplified[i];
+            }
+            return segments;
+        }
+        
+        // 判断星星是否在线条上
+        function isStarOnStroke(star, stroke) {
+            const threshold = state.isScaled ? 25 : 8; // 缩放时容差变大
+            
+            for (let i = 0; i < stroke.points.length - 1; i++) {
+                const p1 = stroke.points[i];
+                const p2 = stroke.points[i + 1];
+                
+                const distance = distanceToLineSegment(star, p1, p2);
+                if (distance < threshold) {
+                    return true;
+                }
+            }
+            
+            return false;
+        }
+        
+        // 计算点到线段的距离
+        function distanceToLineSegment(point, lineStart, lineEnd) {
+            const A = point.x - lineStart.x;
+            const B = point.y - lineStart.y;
+            const C = lineEnd.x - lineStart.x;
+            const D = lineEnd.y - lineStart.y;
+            
+            const dot = A * C + B * D;
+            const lenSq = C * C + D * D;
+            let param = -1;
+            
+            if (lenSq !== 0) {
+                param = dot / lenSq;
+            }
+            
+            let xx, yy;
+            
+            if (param < 0) {
+                xx = lineStart.x;
+                yy = lineStart.y;
+            } else if (param > 1) {
+                xx = lineEnd.x;
+                yy = lineEnd.y;
+            } else {
+                xx = lineStart.x + param * C;
+                yy = lineStart.y + param * D;
+            }
+            
+            const dx = point.x - xx;
+            const dy = point.y - yy;
+            
+            return Math.sqrt(dx * dx + dy * dy);
+        }
+        
+        // 开始计时
+        function startTimer() {
+            state.timerInterval = setInterval(() => {
+                state.timeLeft--;
+                document.getElementById('timeLeft').textContent = state.timeLeft;
+                
+                // 60秒提示（延长线解法）
+                if (state.timeLeft === 60 && !state.solution1Complete && !state.hint60Shown) {
+                    showHint("💡 谁说线条必须在九星范围内？");
+                    state.hint60Shown = true;
+                    drawCanvas(); // 重绘以显示延伸区域
+                }
+                
+                // 时间到
+                if (state.timeLeft <= 0) {
+                    clearInterval(state.timerInterval);
+                    if (!state.solution1Complete && !state.solution2Complete) {
+                        showTimeoutModal();
+                    }
+                }
+            }, 1000);
+        }
+        
+        // 显示提示
+        function showHint(text) {
+            const hintText = document.getElementById('hintText');
+            hintText.textContent = text;
+            hintText.classList.add('hint-text');
+        }
+        
+        // 显示第一次成功弹窗
+        function showFirstVictory() {
+            clearInterval(state.timerInterval);
+            const modal = document.getElementById('firstVictoryModal');
+            const content = document.getElementById('firstVictoryContent');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            setTimeout(() => {
+                content.style.transform = 'scale(1)';
+            }, 10);
+        }
+        function showBestSolutionVictory() {
+            clearInterval(state.timerInterval);
+            const modal = document.getElementById('bestSolutionModal');
+            const content = document.getElementById('bestSolutionContent');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            setTimeout(() => { content.style.transform = 'scale(1)'; }, 10);
+        }
+        function elegantWin() {
+            const modal = document.getElementById('bestSolutionModal');
+            const content = document.getElementById('bestSolutionContent');
+            content.style.transform = 'scale(0)';
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+                const overlay = document.getElementById('trophyOverlay');
+                overlay.classList.remove('hidden');
+                overlay.classList.add('flex');
+            }, 200);
+        }
+        
+        // 接受挑战
+        function acceptChallenge() {
+            const modal = document.getElementById('firstVictoryModal');
+            const content = document.getElementById('firstVictoryContent');
+            
+            content.style.transform = 'scale(0)';
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+                
+                // 显示挑战徽章
+                document.getElementById('challengeBadge').classList.remove('hidden');
+                
+                // 清除画布，继续计时
+                clearCanvas();
+                
+                // 恢复缩放状态
+                if (state.isScaled) {
+                    toggleScale();
+                }
+                
+                // 继续计时
+                startTimer();
+            }, 300);
+        }
+        
+        // 拒绝挑战
+        function declineChallenge() {
+            const modal = document.getElementById('firstVictoryModal');
+            const content = document.getElementById('firstVictoryContent');
+            
+            content.style.transform = 'scale(0)';
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }, 300);
+        }
+        
+        // 显示终极胜利弹窗
+        function showUltimateVictory() {
+            clearInterval(state.timerInterval);
+            
+            const usedTime = 120 - state.timeLeft;
+            const minutes = Math.floor(usedTime / 60);
+            const seconds = usedTime % 60;
+            document.getElementById('finalTime').textContent = 
+                `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            
+            const modal = document.getElementById('ultimateVictoryModal');
+            const content = document.getElementById('ultimateVictoryContent');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            setTimeout(() => {
+                content.style.transform = 'scale(1)';
+            }, 10);
+            
+            // 创建五彩纸屑
+            createConfetti();
+        }
+        
+        // 显示超时弹窗
+        function showTimeoutModal() {
+            const modal = document.getElementById('timeoutModal');
+            const content = document.getElementById('timeoutContent');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            setTimeout(() => {
+                content.style.transform = 'scale(1)';
+            }, 10);
+        }
+        
+        // 创建五彩纸屑
+        function createConfetti() {
+            const colors = ['#EF4444', '#3B82F6', '#FBBF24', '#10B981', '#F59E0B', '#8B5CF6'];
+            for (let i = 0; i < 80; i++) {
+                setTimeout(() => {
+                    const confetti = document.createElement('div');
+                    confetti.style.position = 'fixed';
+                    confetti.style.width = '10px';
+                    confetti.style.height = '10px';
+                    confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                    confetti.style.left = Math.random() * window.innerWidth + 'px';
+                    confetti.style.top = '-10px';
+                    confetti.style.zIndex = '9999';
+                    confetti.style.borderRadius = '50%';
+                    confetti.style.pointerEvents = 'none';
+                    
+                    const animation = confetti.animate([
+                        {
+                            transform: 'translateY(0) rotate(0deg)',
+                            opacity: 1
+                        },
+                        {
+                            transform: `translateY(${window.innerHeight + 100}px) rotate(${Math.random() * 720}deg)`,
+                            opacity: 0
+                        }
+                    ], {
+                        duration: Math.random() * 1000 + 2000,
+                        easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)'
+                    });
+                    
+                    document.body.appendChild(confetti);
+                    
+                    animation.onfinish = () => confetti.remove();
+                }, i * 30);
+            }
+        }
+        
+        // 重新开始游戏
+        function restartGame() {
+            // 清除计时器
+            if (state.timerInterval) {
+                clearInterval(state.timerInterval);
+            }
+            
+            // 重置状态
+            state = {
+                canvas: state.canvas,
+                ctx: state.ctx,
+                stars: [],
+                strokes: [],
+                currentStroke: null,
+                isDrawing: false,
+                clickCount: 0,
+                startTime: Date.now(),
+                timeLeft: 120,
+                timerInterval: null,
+                isScaled: false,
+                scaleLevels: [0.2, 0.5, 1, 1.2],
+                scaleIndex: 2,
+                scaleFactor: 1,
+                solution1Complete: false,
+                solution2Complete: false,
+                lastClickTime: 0,
+                hint60Shown: false,
+                containerScale: 1
+            };
+            
+            // 隐藏所有弹窗
+            document.getElementById('firstVictoryModal').classList.add('hidden');
+            document.getElementById('firstVictoryModal').classList.remove('flex');
+            document.getElementById('firstVictoryContent').style.transform = 'scale(0)';
+            
+            document.getElementById('ultimateVictoryModal').classList.add('hidden');
+            document.getElementById('ultimateVictoryModal').classList.remove('flex');
+            document.getElementById('ultimateVictoryContent').style.transform = 'scale(0)';
+            
+            document.getElementById('bestSolutionModal').classList.add('hidden');
+            document.getElementById('bestSolutionModal').classList.remove('flex');
+            document.getElementById('bestSolutionContent').style.transform = 'scale(0)';
+
+            document.getElementById('timeoutModal').classList.add('hidden');
+            document.getElementById('timeoutModal').classList.remove('flex');
+            document.getElementById('timeoutContent').style.transform = 'scale(0)';
+
+            document.getElementById('trophyOverlay').classList.add('hidden');
+            document.getElementById('trophyOverlay').classList.remove('flex');
+            
+            // 隐藏挑战徽章
+            document.getElementById('challengeBadge').classList.add('hidden');
+            
+            // 重置显示
+            document.getElementById('strokeCount').textContent = '0';
+            document.getElementById('timeLeft').textContent = '120';
+            document.getElementById('hintText').textContent = '';
+            
+            // 重置缩放
+            const container = document.getElementById('canvasContainer');
+            container.style.transform = 'scale(1)';
+            
+            // 重新初始化
+            resetStars();
+            drawCanvas();
+            startTimer();
+        }
+        
+        // 页面加载时初始化
+        window.onload = initGame;
+    </script>
+</body>
+</html>
+    <div id="trophyOverlay" class="fixed inset-0 hidden items-center justify-center z-50 bg-black bg-opacity-40">
+        <div class="trophy-glow text-[160px]">🏆</div>
+    </div>

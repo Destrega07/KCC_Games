@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KCC 培训游戏合集</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-slate-900 via-indigo-900 to-slate-900 min-h-screen">
+  <div class="max-w-6xl mx-auto p-4">
+    <div class="text-center mb-6">
+      <h1 class="text-3xl md:text-4xl font-bold text-white">KCC 培训游戏合集</h1>
+      <p class="text-slate-200 mt-2">选择一个游戏开始；其中 两款需要密码解锁</p>
+    </div>
+
+    <div id="home" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="bg-white rounded-2xl shadow-xl p-5 flex flex-col">
+        <div class="text-2xl font-bold mb-2">九星迷阵</div>
+        <p class="text-slate-600 mb-4">热身游戏：用不多于 4 条直线连接 9 颗星</p>
+        <div class="mt-auto flex gap-2">
+          <button id="enter1Btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg">进入游戏</button>
+          <a href="1.九星迷阵.html" target="_blank" class="bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold py-2 px-4 rounded-lg">新窗口</a>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-2xl shadow-xl p-5 relative flex flex-col">
+        <div class="text-2xl font-bold mb-2">四色困境</div>
+        <p class="text-slate-600 mb-4">让所有方块变成同一种颜色</p>
+        <div id="lock2" class="rounded-xl border border-amber-300 bg-amber-50 p-3 mb-3">
+          <div class="text-amber-800 font-semibold mb-2">已锁定，输入密码解锁</div>
+          <div class="flex gap-2">
+            <input id="unlock2Input" type="password" class="flex-1 border rounded-lg px-3 py-2" placeholder="输入密码">
+            <button id="unlock2Btn" class="bg-amber-500 hover:bg-amber-600 text-white font-semibold px-4 rounded-lg">解锁</button>
+          </div>
+          <div id="unlock2Msg" class="text-red-600 text-sm mt-2"></div>
+        </div>
+        <div class="mt-auto flex gap-2">
+          <button id="enter2Btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg" disabled>进入游戏</button>
+          <a href="2.四色困境.html" target="_blank" class="bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold py-2 px-4 rounded-lg">新窗口</a>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-2xl shadow-xl p-5 relative flex flex-col">
+        <div class="text-2xl font-bold mb-2">水坝决堤</div>
+        <p class="text-slate-600 mb-4">找到薄弱点，让水流冲破障碍，灌溉农田</p>
+        <div id="lock3" class="rounded-xl border border-amber-300 bg-amber-50 p-3 mb-3">
+          <div class="text-amber-800 font-semibold mb-2">已锁定，输入密码解锁</div>
+          <div class="flex gap-2">
+            <input id="unlock3Input" type="password" class="flex-1 border rounded-lg px-3 py-2" placeholder="输入密码">
+            <button id="unlock3Btn" class="bg-amber-500 hover:bg-amber-600 text-white font-semibold px-4 rounded-lg">解锁</button>
+          </div>
+          <div id="unlock3Msg" class="text-red-600 text-sm mt-2"></div>
+        </div>
+        <div class="mt-auto flex gap-2">
+          <button id="enter3Btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg" disabled>进入游戏</button>
+          <a href="3.水坝决堤.html" target="_blank" class="bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold py-2 px-4 rounded-lg">新窗口</a>
+        </div>
+      </div>
+    </div>
+
+    <div id="player" class="hidden">
+      <div class="flex items-center justify-between mb-3">
+        <div class="flex gap-2">
+          <button id="backBtn" class="bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold py-2 px-4 rounded-lg">返回主页</button>
+          <button id="fullscreenBtn" class="bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold py-2 px-4 rounded-lg">全屏</button>
+          <button id="openNewBtn" class="bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold py-2 px-4 rounded-lg">新窗口打开</button>
+        </div>
+        <div id="loading" class="hidden text-white">加载中…</div>
+      </div>
+      <div id="playerContainer" class="relative bg-white rounded-2xl shadow-xl overflow-hidden">
+        <div id="loadingOverlay" class="absolute inset-0 bg-slate-900/40 flex items-center justify-center z-10 hidden">
+          <div class="w-10 h-10 border-4 border-white/60 border-t-transparent rounded-full animate-spin"></div>
+        </div>
+        <iframe id="playerFrame" class="w-full" style="aspect-ratio: 4 / 3;" allowfullscreen></iframe>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const games = {
+      1: { src: '1.九星迷阵.html' },
+      2: { src: '2.四色困境.html' },
+      3: { src: '3.水坝决堤.html' }
+    };
+    let currentGame = null;
+
+    function isUnlocked(id) {
+      if (id === 1) return true;
+      return sessionStorage.getItem('game' + id + 'Unlocked') === '1';
+    }
+    function setUnlocked(id) {
+      sessionStorage.setItem('game' + id + 'Unlocked', '1');
+    }
+    function updateLockUI() {
+      const u2 = isUnlocked(2);
+      const u3 = isUnlocked(3);
+      document.getElementById('lock2').classList.toggle('hidden', u2);
+      document.getElementById('enter2Btn').disabled = !u2;
+      document.getElementById('lock3').classList.toggle('hidden', u3);
+      document.getElementById('enter3Btn').disabled = !u3;
+    }
+    async function unlock(id, value) {
+      const ok = (id === 2 && value === 'kcc2025-2') || (id === 3 && value === 'kcc2025-3');
+      const msgId = id === 2 ? 'unlock2Msg' : 'unlock3Msg';
+      if (ok) {
+        setUnlocked(id);
+        document.getElementById(msgId).textContent = '';
+        updateLockUI();
+      } else {
+        document.getElementById(msgId).textContent = '密码错误';
+      }
+    }
+    function showHome() {
+      document.getElementById('home').classList.remove('hidden');
+      document.getElementById('player').classList.add('hidden');
+      document.getElementById('playerFrame').src = '';
+      currentGame = null;
+    }
+    function showPlayer(id) {
+      document.getElementById('home').classList.add('hidden');
+      document.getElementById('player').classList.remove('hidden');
+      const frame = document.getElementById('playerFrame');
+      const overlay = document.getElementById('loadingOverlay');
+      overlay.classList.remove('hidden');
+      currentGame = id;
+      frame.onload = () => {
+        overlay.classList.add('hidden');
+      };
+      frame.src = games[id].src;
+    }
+    function openNew() {
+      if (!currentGame) return;
+      window.open(games[currentGame].src, '_blank');
+    }
+    function fullScreen() {
+      const el = document.getElementById('playerContainer');
+      if (el.requestFullscreen) el.requestFullscreen();
+    }
+
+    document.getElementById('enter1Btn').addEventListener('click', () => showPlayer(1));
+    document.getElementById('enter2Btn').addEventListener('click', () => showPlayer(2));
+    document.getElementById('enter3Btn').addEventListener('click', () => showPlayer(3));
+    document.getElementById('unlock2Btn').addEventListener('click', () => unlock(2, document.getElementById('unlock2Input').value));
+    document.getElementById('unlock3Btn').addEventListener('click', () => unlock(3, document.getElementById('unlock3Input').value));
+    document.getElementById('backBtn').addEventListener('click', showHome);
+    document.getElementById('openNewBtn').addEventListener('click', openNew);
+    document.getElementById('fullscreenBtn').addEventListener('click', fullScreen);
+
+    updateLockUI();
+  </script>
+</body>
+</html>

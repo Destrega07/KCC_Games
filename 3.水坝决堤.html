@@ -1,0 +1,1873 @@
+<!DOCTYPE html>  
+<html lang="zh-CN">  
+<head>  
+    <meta charset="UTF-8">  
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">  
+    <title>水坝决堤 - 战略侦探版</title>  
+    <script src="https://cdn.tailwindcss.com"></script>  
+    <style>  
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');  
+        
+        * {  
+            box-sizing: border-box;  
+        }  
+        
+        body {  
+            font-family: 'Segoe UI', system-ui, sans-serif;  
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);  
+            overflow: hidden;  
+            margin: 0;  
+            padding: 0;  
+        }  
+        
+        .tech-font {  
+            font-family: 'Orbitron', monospace;  
+        }  
+        
+        /* 工具解锁动画 */  
+        @keyframes pulse-unlock {  
+            0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }  
+            50% { box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); }  
+        }  
+        
+        .unlocked {  
+            animation: pulse-unlock 1.5s ease-out 3;  
+        }  
+        
+        /* 档案纸张效果 */  
+        .archive-paper {  
+            background: linear-gradient(to bottom, #fef3c7 0%, #fde68a 100%);  
+            box-shadow:   
+                0 10px 30px rgba(0,0,0,0.5),  
+                inset 0 1px 0 rgba(255,255,255,0.3);  
+            border: 1px solid #d97706;  
+        }  
+        
+        /* 工具提示 */  
+        .tooltip {  
+            position: absolute;  
+            bottom: 110%;  
+            left: 50%;  
+            transform: translateX(-50%);  
+            background: rgba(0, 0, 0, 0.9);  
+            color: white;  
+            padding: 6px 12px;  
+            border-radius: 6px;  
+            font-size: 12px;  
+            white-space: nowrap;  
+            opacity: 0;  
+            pointer-events: none;  
+            transition: opacity 0.3s;  
+            z-index: 1000;  
+        }  
+        
+        .tooltip::after {  
+            content: '';  
+            position: absolute;  
+            top: 100%;  
+            left: 50%;  
+            transform: translateX(-50%);  
+            border: 5px solid transparent;  
+            border-top-color: rgba(0, 0, 0, 0.9);  
+        }  
+        
+        button:hover .tooltip {  
+            opacity: 1;  
+        }  
+        
+        /* 粒子效果 */  
+        .particle {  
+            position: absolute;  
+            width: 4px;  
+            height: 4px;  
+            background: white;  
+            border-radius: 50%;  
+            pointer-events: none;  
+        }  
+        
+        /* 裂纹悬停提示 */  
+        .crack-tooltip {  
+            position: fixed;  
+            background: rgba(0, 0, 0, 0.9);  
+            color: #fbbf24;  
+            padding: 8px 12px;  
+            border-radius: 6px;  
+            font-size: 14px;  
+            pointer-events: none;  
+            opacity: 0;  
+            transition: opacity 0.3s;  
+            z-index: 1000;  
+            white-space: nowrap;  
+        }  
+        
+        /* 移动端工具页签 */  
+        .mobile-tabs {  
+            display: none;  
+        }  
+        
+        /* 移动端首屏引导 */  
+        .mobile-intro-screen {  
+            display: none;  
+        }  
+        
+        /* 工具提示光圈动画 */
+        @keyframes tool-hint-pulse {
+            0%, 100% { 
+                box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7),
+                            0 0 20px rgba(34, 197, 94, 0.4);
+            }
+            50% { 
+                box-shadow: 0 0 0 15px rgba(34, 197, 94, 0),
+                            0 0 30px rgba(34, 197, 94, 0.6);
+            }
+        }
+        
+        .tool-hint-active {
+            animation: tool-hint-pulse 2s ease-out infinite;
+            border: 2px solid #22c55e !important;
+        }
+        
+        /* 声纳弹窗 */
+        .sonar-modal {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            border: 2px solid #3b82f6;
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+            z-index: 50;
+            width: 90%;
+            max-width: 400px;
+        }
+        
+        /* 热成像关闭按钮 */
+        .thermal-close-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 32px;
+            height: 32px;
+            background: #dc2626;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: bold;
+            color: white;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(220, 38, 38, 0.5);
+            z-index: 60;
+        }
+
+        @media (max-width: 768px) {  
+            .desktop-sidebar {  
+                display: none !important;  
+            }  
+            
+            .mobile-tabs {  
+                display: flex;  
+            }  
+            
+            .mobile-info-panel {  
+                max-height: 35vh;  
+                overflow-y: auto;  
+            }  
+            
+            .mobile-intro-screen {  
+                display: flex;  
+            }  
+        }  
+        
+        /* 桌面端三栏布局 */  
+        @media (min-width: 769px) {  
+            .desktop-layout {  
+                display: grid;  
+                grid-template-columns: 2fr 60px 1fr;  
+                height: calc(100vh - 64px);  
+            }  
+            
+            .mobile-intro-screen {  
+                display: none !important;  
+            }  
+        }  
+    </style>  
+</head>  
+<body class="h-screen flex flex-col select-none">  
+
+    <!-- 移动端首屏引导 -->  
+    <div id="intro-screen" class="mobile-intro-screen fixed inset-0 bg-gradient-to-b from-slate-900 to-slate-800 z-[200] flex-col justify-between p-6 overflow-y-auto">  
+        <div class="flex-1 flex flex-col justify-center">  
+            <h1 class="text-3xl font-bold text-center text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300 mb-4">  
+                水坝决堤<br>战略侦探版  
+            </h1>  
+            
+            <div class="bg-slate-800/50 rounded-lg border border-blue-500/30 p-4 mb-6">  
+                <h2 class="text-lg font-bold text-blue-400 mb-3">📖 游戏背景</h2>  
+                <p class="text-sm text-slate-300 leading-relaxed mb-4">  
+                    一座老旧水坝蓄满了水，而下游的农田却因干旱濒临绝收。你的任务是找到大坝最薄弱的一点，精准击穿它，让水流灌溉农田。  
+                </p>  
+                
+                <!-- 概念图 -->  
+                <div class="w-full h-48 bg-slate-700/50 rounded-lg border border-slate-600 flex items-center justify-center mb-4">  
+                    <img src="水坝决堤概念图.png" class="w-full h-full object-cover rounded" alt="概念图">  
+                </div>  
+                
+                <h2 class="text-lg font-bold text-amber-400 mb-3">🎯 游戏目标</h2>  
+                <ul class="text-sm text-slate-300 space-y-2 leading-relaxed">  
+                    <li>• 大坝被划分为 <strong class="text-blue-300">A、B、C、D</strong> 四个区域</li>  
+                    <li>• 区域中的<strong class="text-yellow-300">黑色线条是大坝裂纹</strong>，点击裂纹可尝试击穿</li>  
+                    <li>• 你只有 <strong class="text-red-400">3次尝试机会</strong></li>  
+                    <li>• 使用三种工具交叉验证，找到真正的薄弱点</li>  
+                </ul>  
+            </div>  
+            
+            <div class="bg-blue-900/30 border border-blue-500/50 rounded-lg p-4">  
+                <p class="text-sm text-blue-200 text-center italic">  
+                    💡 提示：不要盲目尝试，真正的战略家善于整合多维信息  
+                </p>  
+            </div>  
+        </div>  
+        
+        <button onclick="startGame()" class="w-full bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-bold py-4 px-6 rounded-lg text-lg shadow-lg mt-6 active:scale-95 transition-transform">  
+            开始游戏 →  
+        </button>  
+    </div>  
+
+    <!-- 顶部状态栏 -->
+    <header class="bg-slate-900/90 backdrop-blur border-b border-slate-700 px-4 md:px-6 py-3 flex items-center justify-between gap-4 flex-wrap">
+        <!-- 左侧：倒计时 + 尝试次数 -->
+        <div class="flex items-center gap-3 md:gap-6">
+            <!-- 倒计时 -->
+            <div class="flex items-center gap-2 md:gap-3 bg-slate-800 px-3 md:px-4 py-2 rounded-lg border border-slate-700">
+                <svg class="w-5 h-5 md:w-6 md:h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <div>
+                    <div class="text-xs text-slate-400">剩余时间</div>
+                    <div id="timer" class="text-xl md:text-2xl font-bold text-white tech-font">120</div>
+                </div>
+            </div>
+            
+            <!-- 尝试次数 -->
+            <div class="flex items-center gap-2 md:gap-3 bg-slate-800 px-3 md:px-4 py-2 rounded-lg border border-slate-700">
+                <svg class="w-5 h-5 md:w-6 md:h-6 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z" clip-rule="evenodd"/>
+                </svg>
+                <div>
+                    <div class="text-xs text-slate-400">尝试次数</div>
+                    <div id="attempts" class="text-xl md:text-2xl font-bold text-white tech-font">3/3</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 中央：标题（桌面端显示） -->
+        <h1 class="hidden md:block text-xl lg:text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300">
+            水坝决堤 - 战略侦探版
+        </h1>
+        
+        <!-- 右侧：重置按钮 -->
+        <button onclick="restartGame()" class="bg-slate-800 hover:bg-slate-600 text-white px-3 md:px-4 py-2 rounded-lg transition-colors border border-slate-700 flex items-center gap-2 text-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+            重置
+        </button>
+    </header>
+
+    <!-- 主内容区 -->  
+    <main class="flex-1 overflow-hidden">  
+        
+        <!-- 桌面端三栏布局 -->  
+        <div class="desktop-layout hidden md:grid">  
+            
+            <!-- 左栏：概念图+信息区+四区大坝 -->  
+            <div class="flex flex-col bg-slate-900/50 overflow-hidden">  
+                
+                <!-- 概念图与信息区 -->  
+                <div class="grid grid-cols-2 gap-4 p-4 border-b border-slate-700">  
+                    <!-- 概念图 -->  
+                    <div class="bg-slate-800 rounded-lg border border-slate-700 p-3 flex items-center justify-center">  
+                        <svg viewBox="0 0 400 180" class="w-full h-auto">  
+                            <defs>  
+                                <linearGradient id="water" x1="0" y1="0" x2="0" y2="1">  
+                                    <stop offset="0" style="stop-color:#0ea5e9"/>  
+                                    <stop offset="1" style="stop-color:#0369a1"/>  
+                                </linearGradient>  
+                                <linearGradient id="dam" x1="0" y1="0" x2="0" y2="1">  
+                                    <stop offset="0" style="stop-color:#475569"/>  
+                                    <stop offset="1" style="stop-color:#1e293b"/>  
+                                </linearGradient>  
+                            </defs>  
+                            <rect fill="url(#water)" x="0" y="30" width="180" height="80"/>  
+                            <text x="60" y="25" font-size="12" fill="#fff" font-family="sans-serif">蓄水区</text>  
+                            <path fill="url(#dam)" d="M170 40 L230 40 L230 150 L170 150 Z"/>  
+                            <text x="185" y="100" font-size="12" fill="#fff" font-family="sans-serif">大坝</text>  
+                            <rect fill="#b45309" x="230" y="110" width="150" height="70"/>  
+                            <path stroke="#451a03" stroke-width="2" fill="none" d="M240 120 Q250 115 260 120 M270 125 Q280 120 290 125"/>  
+                            <text x="260" y="105" font-size="12" fill="#b45309" font-family="sans-serif">干涸农田</text>  
+                        </svg>  
+                    </div>  
+                    
+                    <!-- 信息区 -->  
+                    <div class="bg-slate-800 rounded-lg border border-blue-500/30 p-3 flex flex-col justify-between">  
+                        <div>  
+                            <h3 class="text-sm font-bold text-blue-400 mb-2">📋 任务目标</h3>  
+                            <p class="text-xs text-slate-300 leading-relaxed">  
+                                ABCD四个区域中的<strong class="text-yellow-300">黑线是大坝裂纹</strong>，你只有<strong class="text-red-400">3次尝试机会</strong>击穿大坝。点击裂纹进行攻击。  
+                            </p>  
+                        </div>  
+                        <div class="mt-2 text-xs text-amber-400 bg-amber-900/20 rounded p-2">  
+                            ⚠️ 请谨慎选择，整合多维信息验证！  
+                        </div>  
+                    </div>  
+                </div>  
+                
+                <!-- 四区大坝画布 -->  
+                <div class="flex-1 relative bg-gradient-to-b from-slate-800 to-slate-900 overflow-hidden">  
+                    <canvas id="mainCanvas" class="w-full h-full cursor-crosshair"></canvas>  
+                    
+                    <!-- 档案浮窗 -->  
+                    <div id="archive-modal" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 max-w-[90%] archive-paper rounded-lg p-6 shadow-2xl hidden z-50" style="font-family: 'Courier New', monospace;">  
+                        <div class="relative">  
+                            <button onclick="closeArchive()" class="absolute -top-4 -right-4 w-8 h-8 bg-red-600 hover:bg-red-700 text-white rounded-full flex items-center justify-center transition-colors shadow-lg font-bold">  
+                                ×  
+                            </button>  
+                            
+                            <div class="border-b-2 border-amber-800 pb-2 mb-4">  
+                                <h3 class="text-xl font-bold text-amber-900">绝密档案 #804</h3>  
+                                <p class="text-xs text-amber-700 mt-1">日期：1987年11月12日 | 工程队：第七加固组</p>  
+                            </div>  
+                            
+                            <div class="space-y-3 text-sm text-gray-800 leading-relaxed max-h-96 overflow-y-auto">  
+                                <div class="bg-white/50 rounded p-2">  
+                                    <p class="font-bold text-amber-900">1）1983年 - A区</p>  
+                                    <p class="text-xs mt-1">维修，在溢洪道上方右侧安装矩形钢板进行加固。</p>  
+                                </div>  
+                                
+                                <div class="bg-white/50 rounded p-2">  
+                                    <p class="font-bold text-amber-900">2）1985年 - D区</p>  
+                                    <p class="text-xs mt-1">维修，在大坝底部靠右位置修补排水孔周围的石块。</p>  
+                                </div>  
+                                
+                                <div class="bg-white/50 rounded p-2">  
+                                    <p class="font-bold text-amber-900">3）1987年 - C区</p>  
+                                    <p class="text-xs mt-1">维修，预算不足，在"水位标尺约5米和10米处"的接缝位置使用钢板补丁进行临时加固。</p>  
+                                </div>  
+                                
+                                <div class="bg-white/50 rounded p-2">  
+                                    <p class="font-bold text-amber-900">4）1992年 - B区</p>  
+                                    <p class="text-xs mt-1">例行表面防水层翻新，无结构性问题。</p>  
+                                </div>  
+                            </div>  
+                            
+                            <div class="absolute -bottom-2 -right-2 text-6xl text-red-600 opacity-20 font-black transform rotate-12 pointer-events-none select-none">  
+                                机密  
+                            </div>  
+                        </div>  
+                    </div>  
+                    
+                    <!-- 系统提示栏 -->  
+                    <div class="absolute bottom-4 left-4 right-4 bg-slate-900/80 backdrop-blur border border-blue-500/30 rounded-lg p-3 z-10">  
+                        <p id="hint-text" class="text-blue-300 text-sm leading-relaxed">  
+                            > 系统初始化... 使用右侧工具开始侦测。  
+                        </p>  
+                    </div>  
+                </div>  
+                
+            </div>  
+            
+            <!-- 中栏：水位标尺 -->  
+            <div class="bg-gradient-to-b from-blue-900/30 to-blue-950/30 border-x border-slate-700 relative flex items-center justify-center">  
+                <canvas id="rulerCanvas" class="w-full h-full"></canvas>  
+            </div>  
+            
+            <!-- 右栏：工具箱+面板 -->  
+            <div class="desktop-sidebar bg-slate-900 flex flex-col gap-4 p-4 overflow-y-auto border-l border-slate-700">  
+                
+                <!-- 工具箱 -->  
+                <div class="bg-slate-800 rounded-lg border border-slate-700 p-3">  
+                    <h3 class="text-xs font-bold text-slate-400 uppercase mb-3">🔧 工具箱</h3>  
+                    <div class="flex flex-col gap-3">  
+                        
+                        <!-- 绝密档案 -->  
+                        <button id="btn-archive" class="relative px-4 py-3 rounded-lg bg-amber-900/30 border-2 border-amber-500/50 text-amber-400 flex items-center gap-3 hover:bg-amber-900/50 transition-all text-left active-tool" onclick="switchTool('archive')">  
+                            <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">  
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>  
+                            </svg>  
+                            <span class="text-sm">绝密档案</span>  
+                            <span class="ml-auto text-xs text-green-400 px-2 py-0.5 bg-green-900/30 rounded">实时</span>  
+                        </button>  
+                        
+                        <!-- 声纳探测 -->  
+                        <button id="btn-sound" class="relative px-4 py-3 rounded-lg bg-slate-800 border-2 border-slate-700 text-slate-500 flex items-center gap-3 cursor-not-allowed transition-all text-left" onclick="switchTool('sound')" disabled>  
+                            <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">  
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/>  
+                            </svg>  
+                            <span class="text-sm">声纳探测</span>  
+                            <svg class="ml-auto w-4 h-4 text-slate-600" fill="currentColor" viewBox="0 0 20 20">  
+                                <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/>  
+                            </svg>  
+                            <div class="absolute bottom-0 left-0 right-0 h-1 bg-slate-700 rounded-b-lg overflow-hidden">  
+                                <div id="progress-sound" class="h-full bg-blue-500 w-0"></div>  
+                            </div>  
+                        </button>  
+                        
+                        <!-- 热成像 -->  
+                        <button id="btn-thermal" class="relative px-4 py-3 rounded-lg bg-slate-800 border-2 border-slate-700 text-slate-500 flex items-center gap-3 cursor-not-allowed transition-all text-left" onclick="switchTool('thermal')" disabled>  
+                            <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">  
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"/>  
+                            </svg>  
+                            <span class="text-sm">热成像</span>  
+                            <svg class="ml-auto w-4 h-4 text-slate-600" fill="currentColor" viewBox="0 0 20 20">  
+                                <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/>  
+                            </svg>  
+                            <div class="absolute bottom-0 left-0 right-0 h-1 bg-slate-700 rounded-b-lg overflow-hidden">  
+                                <div id="progress-thermal" class="h-full bg-orange-500 w-0"></div>  
+                            </div>  
+                        </button>  
+                        
+                    </div>  
+                </div>  
+                
+                <!-- 声波频谱 -->  
+                <div class="bg-slate-800 rounded-lg border border-slate-700 p-3">  
+                    <div class="flex justify-between items-center mb-2">  
+                        <h3 class="text-xs font-bold text-slate-400 uppercase">声纳频谱</h3>  
+                        <span class="text-[10px] text-green-400 px-2 py-0.5 bg-green-900/30 rounded animate-pulse">LIVE</span>  
+                    </div>  
+                    <canvas id="waveCanvas" class="w-full bg-slate-900/50 rounded" height="100"></canvas>  
+                    <div class="flex justify-between text-[10px] text-slate-500 mt-2">  
+                        <span>A区</span>  
+                        <span>B区</span>  
+                        <span>C区</span>  
+                        <span>D区</span>  
+                    </div>  
+                </div>  
+                
+                <!-- 区域状态摘要 -->  
+                <div class="bg-slate-800 rounded-lg border border-slate-700 p-3">  
+                    <h3 class="text-xs font-bold text-slate-400 uppercase mb-3">区域状态摘要</h3>  
+                    <div class="grid grid-cols-2 gap-2">  
+                        <div id="status-a" class="bg-slate-700/50 rounded p-2 text-xs">  
+                            <div class="text-slate-400 font-bold">A区</div>  
+                            <div class="text-slate-500 mt-1">波动正常</div>  
+                        </div>  
+                        <div id="status-b" class="bg-slate-700/50 rounded p-2 text-xs">  
+                            <div class="text-slate-400 font-bold">B区</div>  
+                            <div class="text-slate-500 mt-1">波动正常</div>  
+                        </div>  
+                        <div id="status-c" class="bg-slate-700/50 rounded p-2 text-xs">  
+                            <div class="text-slate-400 font-bold">C区</div>  
+                            <div class="text-orange-400 mt-1">波动偏强</div>  
+                        </div>  
+                        <div id="status-d" class="bg-slate-700/50 rounded p-2 text-xs">  
+                            <div class="text-slate-400 font-bold">D区</div>  
+                            <div class="text-yellow-400 mt-1">轻微异常</div>  
+                        </div>  
+                    </div>  
+                </div>  
+                
+                <!-- 推理记录 -->  
+                <div class="bg-slate-800 rounded-lg border border-slate-700 p-3 flex-1">  
+                    <h3 class="text-xs font-bold text-slate-400 uppercase mb-2">推理记录</h3>  
+                    <div id="reasoning-log" class="space-y-2 text-xs text-slate-400 max-h-40 overflow-y-auto">  
+                        <p class="opacity-50">等待数据...</p>  
+                    </div>  
+                </div>  
+                
+            </div>  
+            
+        </div>  
+        
+        <!-- 移动端布局 -->
+        <div class="md:hidden flex flex-col h-full">
+            
+            <!-- 系统提示栏（移到顶部） -->
+            <div class="bg-slate-900/80 backdrop-blur border-b border-blue-500/30 px-3 py-2">
+                <p id="hint-text-mobile" class="text-blue-300 text-xs leading-relaxed">
+                    > 点击底部工具开始侦测
+                </p>
+            </div>
+            
+            <!-- 主画布容器 -->
+            <div class="flex-1 flex relative overflow-hidden">
+                <!-- 大坝画布 -->
+                <div class="flex-1 relative bg-gradient-to-b from-slate-800 to-slate-900">
+                    <canvas id="mainCanvasMobile" class="w-full h-full cursor-crosshair"></canvas>
+                    
+                    <!-- 档案浮窗（移动端） -->
+                    <div id="archive-modal-mobile" class="absolute inset-4 archive-paper rounded-lg p-4 shadow-2xl hidden z-50 overflow-y-auto" style="font-family: 'Courier New', monospace;">
+                        <div class="relative">
+                            <button onclick="closeArchiveMobile()" class="sticky top-0 float-right w-8 h-8 bg-red-600 text-white rounded-full flex items-center justify-center shadow-lg font-bold z-10">
+                                ×
+                            </button>
+                            
+                            <div class="border-b-2 border-amber-800 pb-2 mb-3">
+                                <h3 class="text-lg font-bold text-amber-900">绝密档案 #804</h3>
+                                <p class="text-xs text-amber-700 mt-1">1987年11月12日</p>
+                            </div>
+                            
+                            <div class="space-y-2 text-xs text-gray-800 leading-relaxed">
+                                <div class="bg-white/50 rounded p-2">
+                                    <p class="font-bold text-amber-900">1）1983年 - A区</p>
+                                    <p class="text-xs mt-1">维修，在溢洪道上方右侧安装矩形钢板进行加固。</p>
+                                </div>
+                                <div class="bg-white/50 rounded p-2">
+                                    <p class="font-bold text-amber-900">2）1985年 - D区</p>
+                                    <p class="text-xs mt-1">维修，在大坝底部靠右位置修补排水孔周围的石块。</p>
+                                </div>
+                                <div class="bg-white/50 rounded p-2">
+                                    <p class="font-bold text-amber-900">3）1987年 - C区</p>
+                                    <p class="text-xs mt-1">维修，预算不足，在"水位标尺约5米和10米处"的接缝位置使用钢板补丁进行临时加固。</p>
+                                </div>
+                                <div class="bg-white/50 rounded p-2">
+                                    <p class="font-bold text-amber-900">4）1992年 - B区</p>
+                                    <p class="text-xs mt-1">例行表面防水层翻新，无结构性问题。</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 声纳弹窗（移动端） -->
+                    <div id="sonar-modal-mobile" class="sonar-modal hidden">
+                        <div class="relative">
+                            <button onclick="closeSonarMobile()" class="absolute -top-2 -right-2 w-8 h-8 bg-red-600 text-white rounded-full flex items-center justify-center shadow-lg font-bold z-10">
+                                ×
+                            </button>
+                            
+                            <h3 class="text-blue-400 font-bold mb-3 text-sm flex items-center gap-2">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/>
+                                </svg>
+                                声纳探测波形
+                            </h3>
+                            
+                            <canvas id="waveCanvasMobile" class="w-full bg-slate-900/50 rounded mb-3" height="80"></canvas>
+                            
+                            <h4 class="text-slate-300 font-bold mb-2 text-xs">区域状态分析</h4>
+                            <div class="grid grid-cols-2 gap-2 text-xs">
+                                <div class="bg-slate-700/50 rounded p-2 text-center">
+                                    <div class="text-slate-400 font-bold">A区</div>
+                                    <div class="text-slate-500 mt-1">正常</div>
+                                </div>
+                                <div class="bg-slate-700/50 rounded p-2 text-center">
+                                    <div class="text-slate-400 font-bold">B区</div>
+                                    <div class="text-slate-500 mt-1">正常</div>
+                                </div>
+                                <div class="bg-slate-700/50 rounded p-2 text-center">
+                                    <div class="text-slate-400 font-bold">C区</div>
+                                    <div class="text-orange-400 mt-1 font-bold">偏强</div>
+                                </div>
+                                <div class="bg-slate-700/50 rounded p-2 text-center">
+                                    <div class="text-slate-400 font-bold">D区</div>
+                                    <div class="text-yellow-400 mt-1">异常</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 热成像关闭按钮（移动端） -->
+                    <div id="thermal-close-mobile" class="thermal-close-btn hidden" onclick="closeThermalMobile()">
+                        ×
+                    </div>
+                </div>
+                
+                <!-- 水位标尺（右侧） -->
+                <div class="w-12 bg-gradient-to-b from-blue-900/30 to-blue-950/30 border-l border-slate-700 relative">
+                    <canvas id="rulerCanvasMobile" class="w-full h-full"></canvas>
+                </div>
+            </div>
+            
+            <!-- 移动端工具页签 -->
+            <div class="mobile-tabs bg-slate-900 border-t border-slate-700 flex">
+                <button onclick="switchToolMobile('archive')" class="flex-1 py-3 text-amber-400 border-b-2 border-amber-500 flex flex-col items-center gap-1" id="tab-archive">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    <span class="text-xs">档案</span>
+                </button>
+                <button onclick="switchToolMobile('sound')" class="flex-1 py-3 text-slate-500 flex flex-col items-center gap-1 cursor-not-allowed" id="tab-sound" disabled>
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                    <span class="text-xs">声纳</span>
+                </button>
+                <button onclick="switchToolMobile('thermal')" class="flex-1 py-3 text-slate-500 flex flex-col items-center gap-1 cursor-not-allowed" id="tab-thermal" disabled>
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"/>
+                    </svg>
+                    <span class="text-xs">热成像</span>
+                </button>
+            </div>
+            
+            <!-- 移动端信息面板（根据tab切换） -->
+            <div class="mobile-info-panel bg-slate-800 p-3" id="mobile-panel">
+                <!-- 档案面板 -->
+                <div id="panel-archive" class="">
+                    <p class="text-sm text-amber-300">📄 点击查阅历史维修记录，寻找薄弱点线索</p>
+                </div>
+                
+                <!-- 声纳面板 -->
+                <div id="panel-sound" class="hidden">
+                    <p class="text-sm text-blue-300">📊 点击查看声纳探测数据和区域状态分析</p>
+                </div>
+                
+                <!-- 热成像面板 -->
+                <div id="panel-thermal" class="hidden">
+                    <p class="text-sm text-orange-300">🌡️ 热成像模式已激活，点击大坝观察温度分布</p>
+                </div>
+            </div>
+        </div>
+        
+    </main>  
+
+    <!-- 裂纹悬停提示 -->  
+    <div id="crack-tooltip" class="crack-tooltip">大坝上的裂纹</div>  
+
+    <!-- 结局模态框 -->  
+    <div id="end-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center z-[100] p-4">  
+        <div id="end-content" class="bg-slate-800 rounded-2xl border-2 border-slate-600 max-w-2xl w-full p-6 md:p-8 shadow-2xl max-h-[90vh] overflow-y-auto">  
+            <!-- 动态内容 -->  
+        </div>  
+    </div>  
+
+    <script>  
+        // ==================== 游戏状态 ====================  
+        const state = {  
+            // Canvas  
+            canvas: null,  
+            ctx: null,  
+            rulerCanvas: null,  
+            rulerCtx: null,  
+            waveCanvas: null,  
+            waveCtx: null,  
+            
+            width: 0,  
+            height: 0,  
+            
+            // 游戏状态  
+            timer: 120,  
+            interval: null,  
+            gameRunning: false,  
+            gameStarted: false, // 是否已开始游戏（跳过首屏）  
+            
+            // 尝试次数  
+            maxAttempts: 3,  
+            remainingAttempts: 3,  
+            
+            // 工具状态  
+            activeMode: 'archive',  
+            toolsUnlocked: {  
+                archive: true,  
+                sound: false,  
+                thermal: false  
+            },  
+            
+            intel: {  
+                archive: false,  
+                sound: false,  
+                thermal: false  
+            },  
+            
+            // 大坝数据  
+            zones: ['A', 'B', 'C', 'D'],  
+            targetZone: 2, // C区  
+            
+            // 裂纹  
+            cracks: [],  
+            weakPoints: [], // 真正的薄弱点（5米和10米处）  
+            
+            // 热成像光斑数据  
+            thermalSpots: [],  
+            
+            // 统计  
+            clickCount: 0,  
+            wrongClicks: 0,  
+            
+            // 响应式  
+            isMobile: window.innerWidth < 769,  
+            
+            // 悬停状态  
+            hoveredCrack: null,  
+            tooltipTimer: null  
+        };  
+
+        // ==================== 初始化 ====================  
+        window.onload = function() {  
+            initCanvases();  
+            
+            window.addEventListener('resize', () => {  
+                const wasMobile = state.isMobile;  
+                state.isMobile = window.innerWidth < 769;  
+                if (wasMobile !== state.isMobile) {  
+                    location.reload();  
+                }  
+                resizeCanvas();  
+            });  
+            
+            // 检查是否移动端，显示首屏  
+            if (state.isMobile) {  
+                document.getElementById('intro-screen').style.display = 'flex';  
+            } else {  
+                startGame(); // 桌面端直接开始  
+            }  
+            
+            requestAnimationFrame(gameLoop);  
+        };  
+
+        function startGame() {  
+            state.gameStarted = true;  
+            if (state.isMobile) {  
+                document.getElementById('intro-screen').style.display = 'none';  
+            }  
+            restartGame();  
+        }  
+
+        function initCanvases() {  
+            if (state.isMobile) {  
+                state.canvas = document.getElementById('mainCanvasMobile');  
+                state.ctx = state.canvas.getContext('2d');  
+                state.rulerCanvas = document.getElementById('rulerCanvasMobile');  
+                state.rulerCtx = state.rulerCanvas.getContext('2d');  
+                state.waveCanvas = document.getElementById('waveCanvasMobile');  
+                state.waveCtx = state.waveCanvas.getContext('2d');  
+            } else {  
+                state.canvas = document.getElementById('mainCanvas');  
+                state.ctx = state.canvas.getContext('2d');  
+                state.rulerCanvas = document.getElementById('rulerCanvas');  
+                state.rulerCtx = state.rulerCanvas.getContext('2d');  
+                state.waveCanvas = document.getElementById('waveCanvas');  
+                state.waveCtx = state.waveCanvas.getContext('2d');  
+            }  
+            
+            state.canvas.addEventListener('click', handleCanvasClick);  
+            state.canvas.addEventListener('mousemove', handleCanvasHover);  
+            state.canvas.addEventListener('touchmove', handleCanvasTouchMove, { passive: false });  
+            state.canvas.addEventListener('mouseleave', hideTooltip);  
+            
+            resizeCanvas();  
+        }  
+
+        function resizeCanvas() {  
+            if (state.canvas) {  
+                state.canvas.width = state.canvas.offsetWidth;  
+                state.canvas.height = state.canvas.offsetHeight;  
+                state.width = state.canvas.width;  
+                state.height = state.canvas.height;  
+            }  
+            
+            if (state.rulerCanvas) {  
+                state.rulerCanvas.width = state.rulerCanvas.offsetWidth;  
+                state.rulerCanvas.height = state.rulerCanvas.offsetHeight;  
+            }  
+            
+            if (state.waveCanvas) {  
+                state.waveCanvas.width = state.waveCanvas.offsetWidth;  
+            }  
+            
+            // 重新生成裂纹（如果已经生成过）  
+            if (state.cracks.length > 0) {  
+                generateCracks();  
+            }  
+        }  
+
+        function restartGame() {  
+            // 重置状态  
+            state.timer = 120;  
+            state.gameRunning = true;  
+            state.activeMode = 'archive';  
+            state.toolsUnlocked = { archive: true, sound: false, thermal: false };  
+            state.intel = { archive: false, sound: false, thermal: false };  
+            state.remainingAttempts = state.maxAttempts;  
+            state.clickCount = 0;  
+            state.wrongClicks = 0;  
+            
+            // 重置UI  
+            document.getElementById('timer').textContent = '120';  
+            updateAttemptsUI();  
+            resetButtons();  
+            closeArchive();  
+            if (state.isMobile) closeArchiveMobile();  
+            document.getElementById('end-modal').classList.add('hidden');  
+            document.getElementById('end-modal').classList.remove('flex');  
+            updateHint('> 绝密档案已解锁。查阅维修记录，寻找线索。');  
+            
+            // 生成裂纹和热成像数据  
+            generateCracks();  
+            generateThermalSpots();  
+            
+            // 启动计时器  
+            if (state.interval) clearInterval(state.interval);  
+            state.interval = setInterval(tick, 1000);  
+            
+            if (state.isMobile) {
+                // 移动端不自动打开档案，只添加提示光圈
+                const archiveTab = document.getElementById('tab-archive');
+                if (archiveTab) {
+                    archiveTab.classList.add('tool-hint-active');
+                    setTimeout(() => {
+                        archiveTab.classList.remove('tool-hint-active');
+                    }, 5000);
+                }
+            } else {
+                switchTool('archive');
+            }
+        }  
+
+        function tick() {  
+            if (!state.gameRunning) return;  
+            
+            state.timer--;  
+            document.getElementById('timer').textContent = state.timer;  
+            
+            const elapsed = 120 - state.timer;  
+            
+            // 解锁声纳探测 (20s)  
+            if (elapsed === 20 && !state.toolsUnlocked.sound) {  
+                unlockTool('sound');  
+                updateHint('> [系统通知] 声纳探测系统已就绪。切换查看声波异常分区。');  
+            }  
+            if (elapsed < 20) {  
+                const progress = (elapsed / 20) * 100;  
+                const progressBar = document.getElementById('progress-sound');  
+                if (progressBar) progressBar.style.width = `${progress}%`;  
+            }  
+            
+            // 解锁热成像 (30s)  
+            if (elapsed === 30 && !state.toolsUnlocked.thermal) {  
+                unlockTool('thermal');  
+                updateHint('> [系统通知] 热成像扫描仪已就绪。切换查看温度异常区域。');  
+            }  
+            if (elapsed < 30) {  
+                const progress = (elapsed / 30) * 100;  
+                document.getElementById('progress-thermal').style.width = `${progress}%`;  
+            }  
+            
+            // 时间到  
+            if (state.timer <= 0) {  
+                endGame(false, '时间耗尽');  
+            }  
+        }  
+
+        function unlockTool(tool) {
+            state.toolsUnlocked[tool] = true;
+            
+            if (state.isMobile) {
+                const btn = document.getElementById(`tab-${tool}`);
+                if (btn) {
+                    btn.disabled = false;
+                    btn.classList.remove('cursor-not-allowed', 'text-slate-500');
+                    btn.classList.add('text-slate-300', 'tool-hint-active'); // 添加提示光圈
+                    
+                    // 3秒后移除光圈
+                    setTimeout(() => {
+                        btn.classList.remove('tool-hint-active');
+                    }, 5000);
+                }
+            } else {
+                const btn = document.getElementById(`btn-${tool}`);
+                if (btn) {
+                    btn.disabled = false;
+                    btn.classList.remove('cursor-not-allowed', 'bg-slate-800', 'border-slate-700', 'text-slate-500');
+                    btn.classList.add('unlocked', 'bg-slate-700', 'border-slate-600', 'text-slate-300', 'hover:bg-slate-600');
+                    const lock = btn.querySelector('svg[fill="currentColor"]');
+                    if (lock) lock.remove();
+                }
+            }
+        }
+
+        function switchTool(mode) {  
+            if (!state.toolsUnlocked[mode]) return;  
+            
+            state.activeMode = mode;  
+            
+            // 更新按钮状态  
+            ['archive', 'sound', 'thermal'].forEach(t => {  
+                const btn = document.getElementById(`btn-${t}`);  
+                if (btn) {  
+                    if (t === mode) {  
+                        btn.classList.add('border-blue-500', 'bg-blue-900/30', 'active-tool');  
+                        btn.classList.remove('border-slate-600', 'bg-slate-700', 'border-amber-500', 'bg-amber-900/30');  
+                        if (t === 'archive') {  
+                            btn.classList.remove('border-amber-500', 'bg-amber-900/30');  
+                        }  
+                    } else {  
+                        btn.classList.remove('border-blue-500', 'bg-blue-900/30', 'active-tool');  
+                        if (t === 'archive' && state.toolsUnlocked[t]) {  
+                            btn.classList.add('border-amber-500', 'bg-amber-900/30');  
+                        } else if (state.toolsUnlocked[t]) {  
+                            btn.classList.add('border-slate-600', 'bg-slate-700');  
+                        }  
+                    }  
+                }  
+            });  
+            
+            // 模式特定逻辑  
+            if (mode === 'archive') {  
+                document.getElementById('archive-modal').classList.remove('hidden');  
+                state.intel.archive = true;  
+                updateHint('> 正在查阅历史档案... 注意C区的临时修补记录。');  
+                addReasoningLog('📄 档案显示：C区"5米和10米处"有临时修补点');  
+            } else {  
+                closeArchive();  
+            }  
+            
+            if (mode === 'thermal') {  
+                state.intel.thermal = true;  
+                updateHint('> 热成像模式已启动。留意C区和D区的蓝色低温光斑。');  
+                addReasoningLog('🌡️ 热成像：C区有3块蓝色光斑，D区有1块大面积浅蓝光斑');  
+            }  
+            
+            if (mode === 'sound') {  
+                state.intel.sound = true;  
+                updateHint('> 声纳探测启动。观察C区和D区的声波异常。');  
+                addReasoningLog('📊 声纳分析：C区和D区波形异常，C区振幅最大');  
+            }  
+        }  
+
+        function switchToolMobile(mode) {
+            if (!state.toolsUnlocked[mode]) return;
+            
+            state.activeMode = mode;
+            
+            // 移除所有工具的提示光圈
+            ['archive', 'sound', 'thermal'].forEach(t => {
+                const tab = document.getElementById(`tab-${t}`);
+                if (tab) tab.classList.remove('tool-hint-active');
+            });
+            
+            // 更新tab状态
+            ['archive', 'sound', 'thermal'].forEach(t => {
+                const tab = document.getElementById(`tab-${t}`);
+                const panel = document.getElementById(`panel-${t}`);
+                
+                if (tab && panel) {
+                    if (t === mode) {
+                        tab.classList.add('border-b-2', 'border-blue-500', 'text-blue-400');
+                        tab.classList.remove('text-slate-500', 'text-slate-300', 'text-amber-400', 'border-amber-500');
+                        panel.classList.remove('hidden');
+                    } else {
+                        tab.classList.remove('border-b-2', 'border-blue-500', 'text-blue-400');
+                        if (t === 'archive' && state.toolsUnlocked[t]) {
+                            tab.classList.add('text-amber-400');
+                        } else if (state.toolsUnlocked[t]) {
+                            tab.classList.add('text-slate-300');
+                        } else {
+                            tab.classList.add('text-slate-500');
+                        }
+                        panel.classList.add('hidden');
+                    }
+                }
+            });
+            
+            // 特定逻辑
+            if (mode === 'archive') {
+                document.getElementById('archive-modal-mobile').classList.remove('hidden');
+                state.intel.archive = true;
+                updateHint('> 查阅档案：从中寻找大坝的弱点线索');
+            } else {
+                closeArchiveMobile();
+            }
+            
+            if (mode === 'thermal') {
+                state.intel.thermal = true;
+                updateHint('> 热成像启动。冷色调代表大坝结构相对疏松；暖色调代表结构紧密');
+                document.getElementById('thermal-close-mobile').classList.remove('hidden');
+            } else {
+                closeThermalMobile();
+            }
+            
+            if (mode === 'sound') {
+                state.intel.sound = true;
+                updateHint('> 声纳探测启动，分析各区域声波异常');
+                const modal = document.getElementById('sonar-modal-mobile');
+                modal.classList.remove('hidden');
+                const c = document.getElementById('waveCanvasMobile');
+                if (c) { c.width = c.offsetWidth; }
+            } else {
+                closeSonarMobile();
+            }
+        }
+
+        function closeArchiveMobile() {
+            const modal = document.getElementById('archive-modal-mobile');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        function closeSonarMobile() {
+            const modal = document.getElementById('sonar-modal-mobile');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        function closeThermalMobile() {
+            const btn = document.getElementById('thermal-close-mobile');
+            if (btn) btn.classList.add('hidden');
+            
+            // 只切换状态，不打开档案
+            state.activeMode = 'normal';
+            
+            // 更新所有tab为非激活状态
+            ['archive', 'sound', 'thermal'].forEach(t => {
+                const tab = document.getElementById(`tab-${t}`);
+                if (tab) {
+                    tab.classList.remove('border-b-2', 'border-blue-500', 'text-blue-400');
+                    if (t === 'archive') {
+                        tab.classList.add('text-amber-400');
+                    } else if (state.toolsUnlocked[t]) {
+                        tab.classList.add('text-slate-300');
+                    } else {
+                        tab.classList.add('text-slate-500');
+                    }
+                }
+                
+                const panel = document.getElementById(`panel-${t}`);
+                if (panel) panel.classList.add('hidden');
+            });
+            
+            // 显示档案面板（但不打开档案浮窗）
+            const archivePanel = document.getElementById('panel-archive');
+            if (archivePanel) archivePanel.classList.remove('hidden');
+            
+            const archiveTab = document.getElementById('tab-archive');
+            if (archiveTab) {
+                archiveTab.classList.add('border-b-2', 'border-amber-500', 'text-amber-400');
+                archiveTab.classList.remove('text-slate-300');
+            }
+            
+            updateHint('档案开启，内有线索');
+        }
+
+        function closeArchive() {  
+            const modal = document.getElementById('archive-modal');  
+            if (modal) modal.classList.add('hidden');  
+        }  
+
+        function closeArchiveMobile() {  
+            const modal = document.getElementById('archive-modal-mobile');  
+            if (modal) modal.classList.add('hidden');  
+        }  
+
+        function resetButtons() {  
+            ['sound', 'thermal'].forEach(id => {  
+                if (state.isMobile) {  
+                    const btn = document.getElementById(`tab-${id}`);  
+                    if (btn) {  
+                        btn.disabled = true;  
+                        btn.classList.add('cursor-not-allowed', 'text-slate-500');  
+                        btn.classList.remove('text-slate-300', 'unlocked');  
+                    }  
+                } else {  
+                    const btn = document.getElementById(`btn-${id}`);  
+                    if (btn) {  
+                        btn.disabled = true;  
+                        btn.classList.add('cursor-not-allowed', 'bg-slate-800', 'border-slate-700', 'text-slate-500');  
+                        btn.classList.remove('unlocked', 'bg-slate-700', 'border-slate-600', 'text-slate-300');  
+                        
+                        if (!btn.querySelector('svg[fill="currentColor"]')) {  
+                            const lock = document.createElementNS('http://www.w3.org/2000/svg', 'svg');  
+                            lock.setAttribute('class', 'ml-auto w-4 h-4 text-slate-600');  
+                            lock.setAttribute('fill', 'currentColor');  
+                            lock.setAttribute('viewBox', '0 0 20 20');  
+                            lock.innerHTML = '<path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/>';  
+                            btn.appendChild(lock);  
+                        }  
+                    }  
+                }  
+            });  
+        }  
+
+        function updateAttemptsUI() {  
+            const attemptsEl = document.getElementById('attempts');  
+            if (attemptsEl) {  
+                attemptsEl.textContent = `${state.remainingAttempts}/${state.maxAttempts}`;  
+            }  
+        }  
+
+        function updateHint(text) {  
+            const hintEl = state.isMobile ? document.getElementById('hint-text-mobile') : document.getElementById('hint-text');  
+            if (hintEl) hintEl.textContent = text;  
+        }  
+
+        function addReasoningLog(text) {  
+            if (state.isMobile) return;  
+            
+            const log = document.getElementById('reasoning-log');  
+            if (!log) return;  
+            
+            if (log.querySelector('.opacity-50')) {  
+                log.innerHTML = '';  
+            }  
+            const p = document.createElement('p');  
+            p.className = 'text-xs text-blue-300 border-l-2 border-blue-500 pl-2 animate-pulse';  
+            p.textContent = text;  
+            log.appendChild(p);  
+            setTimeout(() => p.classList.remove('animate-pulse'), 2000);  
+        }  
+
+        // ==================== 裂纹生成 ====================
+        function generateCracks() {
+            state.cracks = [];
+            state.weakPoints = [];
+            
+            // 设置固定随机种子，确保裂纹位置稳定
+            let seed = 12345;
+            const seededRandom = () => {
+                seed = (seed * 9301 + 49297) % 233280;
+                return seed / 233280;
+            };
+            
+            const damTop = state.height * 0.05;
+            const damHeight = state.height * 0.95;
+            
+            // 计算每米对应的像素
+            const meterToPixel = damHeight / 30;
+            
+            // C区位置 (左下)
+            const cZoneX = 0;
+            const cZoneY = damTop + damHeight / 2;
+            const cZoneW = state.width / 2;
+            const cZoneH = damHeight / 2;
+            
+            // C区的一真一假两个薄弱点：5米处和10米处（从底部算起）
+            const weak5m = {
+                x: cZoneX + cZoneW * 0.35,
+                y: state.height - meterToPixel * 5,
+                isReal: true,
+                depth: 'deep' // 颜色略深
+            };
+            
+            const weak10m = {
+                x: cZoneX + cZoneW * 0.65,
+                y: state.height - meterToPixel * 10,
+                isReal: false,
+                depth: 'shallow'
+            };
+            
+            state.weakPoints = [weak5m, weak10m];
+            
+            // === C区裂纹（6条）===
+            // 5米处2条（左侧为唯一正确答案，右侧为错误）
+            for (let i = 0; i < 2; i++) {
+                const isLeft = i === 0;
+                state.cracks.push({
+                    x: weak5m.x + (i - 0.5) * 40,
+                    y: weak5m.y + (seededRandom() - 0.5) * 30,
+                    length: 20 + seededRandom() * 25,
+                    angle: seededRandom() * Math.PI * 2,
+                    width: 1.5 + seededRandom() * 0.5,
+                    zone: 'C',
+                    segments: 5 + Math.floor(seededRandom() * 3),
+                    isNearWeak: isLeft,
+                    weakPoint: isLeft ? weak5m : null,
+                    seed: seed // 保存种子用于绘制
+                });
+            }
+            
+            // 10米处2条
+            for (let i = 0; i < 2; i++) {
+                state.cracks.push({
+                    x: weak10m.x + (i - 0.5) * 40,
+                    y: weak10m.y + (seededRandom() - 0.5) * 30,
+                    length: 20 + seededRandom() * 25,
+                    angle: seededRandom() * Math.PI * 2,
+                    width: 1.5 + seededRandom() * 0.5,
+                    zone: 'C',
+                    segments: 5 + Math.floor(seededRandom() * 3),
+                    isNearWeak: true,
+                    weakPoint: weak10m,
+                    seed: seed
+                });
+            }
+            
+            // 其他位置2条
+            const otherHeights = [15, 22]; // 15米和22米
+            otherHeights.forEach(height => {
+                state.cracks.push({
+                    x: cZoneX + cZoneW * (0.3 + seededRandom() * 0.4),
+                    y: state.height - meterToPixel * height,
+                    length: 18 + seededRandom() * 20,
+                    angle: seededRandom() * Math.PI * 2,
+                    width: 1.5 + seededRandom() * 0.5,
+                    zone: 'C',
+                    segments: 5 + Math.floor(seededRandom() * 3),
+                    seed: seed
+                });
+            });
+            
+            // === D区裂纹（5条）===
+            const dZoneX = state.width / 2;
+            const dHeights = [5, 5, 8, 10, 10]; // 5米2条、8米1条、10米2条
+            
+            dHeights.forEach((height, idx) => {
+                state.cracks.push({
+                    x: dZoneX + (state.width / 2) * (0.3 + seededRandom() * 0.4),
+                    y: state.height - meterToPixel * height + (seededRandom() - 0.5) * 20,
+                    length: 18 + seededRandom() * 22,
+                    angle: seededRandom() * Math.PI * 2,
+                    width: 1.5 + seededRandom() * 0.5,
+                    zone: 'D',
+                    segments: 5 + Math.floor(seededRandom() * 3),
+                    seed: seed
+                });
+            });
+            
+            // === A区和B区各3条 ===
+            ['A', 'B'].forEach((zone) => {
+                const isA = zone === 'A';
+                const zx = isA ? 0 : state.width / 2;
+                const zy = damTop;
+                const zw = state.width / 2;
+                const zh = damHeight / 2;
+                
+                for (let i = 0; i < 3; i++) {
+                    state.cracks.push({
+                        x: zx + zw * (0.25 + seededRandom() * 0.5),
+                        y: zy + zh * (0.25 + seededRandom() * 0.5),
+                        length: 18 + seededRandom() * 20,
+                        angle: seededRandom() * Math.PI * 2,
+                        width: 1.5 + seededRandom() * 0.5,
+                        zone: zone,
+                        segments: 5 + Math.floor(seededRandom() * 3),
+                        seed: seed
+                    });
+                }
+            });
+        }
+
+        // ==================== 热成像光斑生成 ====================
+        function generateThermalSpots() {
+            state.thermalSpots = [];
+            
+            // 固定随机种子
+            let seed = 54321;
+            const seededRandom = () => {
+                seed = (seed * 9301 + 49297) % 233280;
+                return seed / 233280;
+            };
+            
+            const damTop = state.height * 0.05;
+            const damHeight = state.height * 0.95;
+            const meterToPixel = damHeight / 30;
+            
+            // C区的3块光斑
+            // 光斑1：5米处，颜色略深（对应真正薄弱点）
+            state.thermalSpots.push({
+                x: state.width * 0.25 * 0.35,
+                y: state.height - meterToPixel * 5,
+                radius: 30 + seededRandom() * 20,
+                intensity: 0.7, // 略深
+                zone: 'C'
+            });
+            
+            // 光斑2：10米处，颜色正常
+            state.thermalSpots.push({
+                x: state.width * 0.25 * 0.65,
+                y: state.height - meterToPixel * 10,
+                radius: 45 + seededRandom() * 15,
+                intensity: 0.5,
+                zone: 'C'
+            });
+            
+            // 光斑3：C区其他位置，颜色更浅
+            state.thermalSpots.push({
+                x: state.width * 0.25 * 1.5,
+                y: state.height - meterToPixel * 15,
+                radius: 40 + seededRandom() * 15,
+                intensity: 0.4,
+                zone: 'C'
+            });
+            
+            // D区1块大面积浅蓝光斑
+            state.thermalSpots.push({
+                x: state.width * 0.75,
+                y: state.height - meterToPixel * 8,
+                radius: 80 + seededRandom() * 20,
+                intensity: 0.3, // 颜色更浅
+                zone: 'D'
+            });
+        }
+
+        // ==================== 渲染循环 ====================
+        function gameLoop() {
+            if (state.gameStarted) {
+                drawMainCanvas();
+                drawRulerCanvas();
+                drawWaveCanvas();
+            }
+            requestAnimationFrame(gameLoop);
+        }
+
+        function drawMainCanvas() {
+            if (!state.ctx) return;
+            
+            const ctx = state.ctx;
+            const w = state.width;
+            const h = state.height;
+            
+            ctx.clearRect(0, 0, w, h);
+            
+            // 根据模式绘制
+            if (state.activeMode === 'thermal') {
+                drawThermalDam(ctx, w, h);
+            } else {
+                drawNormalDam(ctx, w, h);
+            }
+        }
+
+        function drawNormalDam(ctx, w, h) {
+            const damTop = h * 0.05;
+            const damH = h * 0.95;
+            
+            // 大坝主体
+            const damGrad = ctx.createLinearGradient(0, damTop, 0, h);
+            damGrad.addColorStop(0, '#475569');
+            damGrad.addColorStop(0.5, '#334155');
+            damGrad.addColorStop(1, '#1e293b');
+            ctx.fillStyle = damGrad;
+            ctx.fillRect(0, damTop, w, damH);
+            
+            // 分区网格
+            ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(w / 2, damTop);
+            ctx.lineTo(w / 2, h);
+            ctx.moveTo(0, damTop + damH / 2);
+            ctx.lineTo(w, damTop + damH / 2);
+            ctx.stroke();
+            
+            // 区域标签
+            ctx.fillStyle = 'rgba(255,255,255,0.1)';
+            ctx.font = 'bold 36px Arial';
+            ctx.fillText('A', w * 0.25 - 12, damTop + damH * 0.25);
+            ctx.fillText('B', w * 0.75 - 12, damTop + damH * 0.25);
+            ctx.fillText('C', w * 0.25 - 12, damTop + damH * 0.75);
+            ctx.fillText('D', w * 0.75 - 12, damTop + damH * 0.75);
+            
+            // 绘制裂纹（不规则形状，使用固定路径）
+            state.cracks.forEach((crack) => {
+                ctx.strokeStyle = '#0f172a';
+                ctx.lineWidth = crack.width;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                
+                // 如果裂纹已有缓存路径，直接使用
+                if (!crack.path) {
+                    // 首次生成路径并缓存
+                    crack.path = [];
+                    let currentX = crack.x;
+                    let currentY = crack.y;
+                    const segmentLength = crack.length / crack.segments;
+                    
+                    // 使用裂纹自己的种子生成稳定路径
+                    let pathSeed = crack.seed || 12345;
+                    const pathRandom = () => {
+                        pathSeed = (pathSeed * 9301 + 49297) % 233280;
+                        return pathSeed / 233280;
+                    };
+                    
+                    crack.path.push({ x: currentX, y: currentY });
+                    
+                    for (let i = 0; i < crack.segments; i++) {
+                        const angleVariation = (pathRandom() - 0.5) * 0.5;
+                        const lengthVariation = 0.8 + pathRandom() * 0.4;
+                        
+                        currentX += Math.cos(crack.angle + angleVariation) * segmentLength * lengthVariation;
+                        currentY += Math.sin(crack.angle + angleVariation) * segmentLength * lengthVariation;
+                        
+                        crack.path.push({ x: currentX, y: currentY });
+                    }
+                }
+                
+                // 绘制缓存的路径
+                ctx.beginPath();
+                ctx.moveTo(crack.path[0].x, crack.path[0].y);
+                for (let i = 1; i < crack.path.length; i++) {
+                    ctx.lineTo(crack.path[i].x, crack.path[i].y);
+                }
+                ctx.stroke();
+            });
+        }
+
+        function drawThermalDam(ctx, w, h) {
+            const damTop = h * 0.05;
+            const damH = h * 0.95;
+            
+            // 整体黄橙色背景
+            const baseGrad = ctx.createLinearGradient(0, damTop, 0, h);
+            baseGrad.addColorStop(0, '#f59e0b');
+            baseGrad.addColorStop(0.5, '#eab308');
+            baseGrad.addColorStop(1, '#f97316');
+            ctx.fillStyle = baseGrad;
+            ctx.fillRect(0, damTop, w, damH);
+            
+            // 添加随机热点（红色）
+            for (let i = 0; i < 8; i++) {
+                const rx = Math.random() * w;
+                const ry = damTop + Math.random() * damH;
+                const grad = ctx.createRadialGradient(rx, ry, 0, rx, ry, 60 + Math.random() * 40);
+                grad.addColorStop(0, 'rgba(239, 68, 68, 0.4)');
+                grad.addColorStop(1, 'rgba(234, 179, 8, 0)');
+                ctx.fillStyle = grad;
+                ctx.fillRect(0, damTop, w, damH);
+            }
+            
+            // 绘制蓝色光斑（模糊、不规则）
+            state.thermalSpots.forEach(spot => {
+                const blueIntensity = spot.intensity;
+                
+                // 创建不规则光斑（多个圆形叠加）
+                for (let i = 0; i < 3; i++) {
+                    const offsetX = (Math.random() - 0.5) * spot.radius * 0.3;
+                    const offsetY = (Math.random() - 0.5) * spot.radius * 0.3;
+                    const subRadius = spot.radius * (0.6 + Math.random() * 0.4);
+                    
+                    const grad = ctx.createRadialGradient(
+                        spot.x + offsetX, spot.y + offsetY, 0,
+                        spot.x + offsetX, spot.y + offsetY, subRadius
+                    );
+                    
+                    grad.addColorStop(0, `rgba(59, 130, 246, ${blueIntensity * 0.6})`);
+                    grad.addColorStop(0.5, `rgba(96, 165, 250, ${blueIntensity * 0.3})`);
+                    grad.addColorStop(1, 'rgba(234, 179, 8, 0)');
+                    
+                    ctx.fillStyle = grad;
+                    ctx.fillRect(0, damTop, w, damH);
+                }
+            });
+            
+            // 扫描线效果
+            ctx.fillStyle = 'rgba(0,0,0,0.08)';
+            for (let y = damTop; y < h; y += 4) {
+                ctx.fillRect(0, y, w, 1);
+            }
+            
+            // 区域标签
+            ctx.fillStyle = 'rgba(0,0,0,0.4)';
+            ctx.font = 'bold 36px Arial';
+            ctx.fillText('A', w * 0.25 - 12, damTop + damH * 0.25);
+            ctx.fillText('B', w * 0.75 - 12, damTop + damH * 0.25);
+            ctx.fillText('C', w * 0.25 - 12, damTop + damH * 0.75);
+            ctx.fillText('D', w * 0.75 - 12, damTop + damH * 0.75);
+        }
+
+        function drawRulerCanvas() {
+            if (!state.rulerCtx) return;
+            
+            const ctx = state.rulerCtx;
+            const w = state.rulerCanvas.width;
+            const h = state.rulerCanvas.height;
+            
+            ctx.clearRect(0, 0, w, h);
+            
+            // 背景
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.5)';
+            ctx.fillRect(0, 0, w, h);
+            
+            // 刻度（0-30m，从下到上）
+            ctx.strokeStyle = '#64748b';
+            ctx.fillStyle = '#e2e8f0';
+            const fontSize = state.isMobile ? 8 : 10;
+            ctx.font = `${fontSize}px monospace`;
+            ctx.textAlign = 'center';
+            
+            for (let meter = 0; meter <= 30; meter += 5) {
+                const y = h - (meter / 30) * h;
+                
+                // 刻度线
+                ctx.beginPath();
+                ctx.moveTo(w * 0.3, y);
+                ctx.lineTo(w * 0.7, y);
+                ctx.stroke();
+                
+                // 数字
+                ctx.fillText(`${meter}m`, w / 2, y - 3);
+            }
+            
+            // 中轴线
+            ctx.strokeStyle = '#475569';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(w / 2, 0);
+            ctx.lineTo(w / 2, h);
+            ctx.stroke();
+        }
+
+        function drawWaveCanvas() {
+            // 桌面端
+            if (!state.isMobile && state.waveCtx) {
+                drawWave(state.waveCtx, state.waveCanvas);
+            }
+            
+            // 移动端
+            if (state.isMobile) {
+                const mobileCanvas = document.getElementById('waveCanvasMobile');
+                if (mobileCanvas) {
+                    const mobileCtx = mobileCanvas.getContext('2d');
+                    if (mobileCtx) {
+                        drawWave(mobileCtx, mobileCanvas);
+                    }
+                }
+            }
+        }
+        
+        function drawWave(ctx, canvas) {
+            if (!ctx || !canvas) return;
+            
+            const w = canvas.width;
+            const h = canvas.height;
+            
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(0, 0, w, h);
+            
+            const time = Date.now() * 0.003;
+            const zoneW = w / 4;
+            
+            for (let i = 0; i < 4; i++) {
+                const isAbnormal = i === 2 || i === 3; // C区和D区
+                const isMost = i === 2; // C区最强
+                
+                ctx.strokeStyle = isAbnormal ? (isMost ? '#ef4444' : '#f97316') : '#22c55e';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                
+                const startX = i * zoneW;
+                const centerY = h / 2;
+                const freq = isMost ? 0.04 : (isAbnormal ? 0.08 : 0.15);
+                const amp = isMost ? (h * 0.35) : (isAbnormal ? (h * 0.2) : (h * 0.1));
+                
+                for (let x = 0; x < zoneW; x += 2) {
+                    const envelope = Math.sin((x / zoneW) * Math.PI);
+                    const y = centerY + Math.sin((x + time * 30) * freq) * amp * envelope;
+                    if (x === 0) ctx.moveTo(startX + x, y);
+                    else ctx.lineTo(startX + x, y);
+                }
+                ctx.stroke();
+            }
+        }
+
+        // ==================== 交互逻辑 ====================
+        function handleCanvasClick(e) {
+            if (!state.gameRunning) return;
+            if (state.remainingAttempts <= 0) {
+                updateHint('⚠️ 尝试次数已用尽！');
+                return;
+            }
+            
+            const rect = state.canvas.getBoundingClientRect();
+            const x = (e.clientX || e.touches?.[0]?.clientX) - rect.left;
+            const y = (e.clientY || e.touches?.[0]?.clientY) - rect.top;
+            
+            // 忽略顶部水面点击
+            if (y < state.height * 0.05) return;
+            
+            state.clickCount++;
+            
+            // 检测是否点击裂纹
+            let hitCrack = null;
+            let minDist = Infinity;
+            
+            state.cracks.forEach((crack, idx) => {
+                const dist = Math.sqrt((x - crack.x) ** 2 + (y - crack.y) ** 2);
+                if (dist < 25 && dist < minDist) {
+                    minDist = dist;
+                    hitCrack = crack;
+                }
+            });
+            
+            if (hitCrack) {
+                if (hitCrack.isNearWeak && hitCrack.weakPoint && hitCrack.weakPoint.isReal) {
+                    const intelCount = Object.values(state.intel).filter(Boolean).length;
+                    
+                    if (intelCount >= 2) {
+                        // 胜利
+                        triggerVictory(x, y, hitCrack.weakPoint);
+                    } else {
+                        // 情报不足
+                        state.remainingAttempts--;
+                        updateAttemptsUI();
+                        updateHint(`⚠️ 发现疑似薄弱点，但情报不足！请使用更多工具验证（至少2种）。剩余 ${state.remainingAttempts} 次机会。`);
+                        spawnParticles(x, y, 15, '#fbbf24');
+                        
+                        if (state.remainingAttempts <= 0) {
+                            endGame(false, '尝试次数耗尽');
+                        }
+                    }
+                } else {
+                    // 普通裂纹
+                    state.wrongClicks++;
+                    state.remainingAttempts--;
+                    updateAttemptsUI();
+                    updateHint(`❌ 此处结构较为稳固。剩余 ${state.remainingAttempts} 次机会。`);
+                    spawnParticles(x, y, 8, '#64748b');
+                    
+                    if (state.remainingAttempts <= 0) {
+                        endGame(false, '尝试次数耗尽');
+                    }
+                }
+            } else {
+                // 点击空白
+                state.remainingAttempts--;
+                updateAttemptsUI();
+                updateHint(`点击位置未发现明显裂纹。剩余 ${state.remainingAttempts} 次机会。`);
+                
+                if (state.remainingAttempts <= 0) {
+                    endGame(false, '尝试次数耗尽');
+                }
+            }
+        }
+
+        function handleCanvasHover(e) {
+            if (!state.gameRunning) return;
+            
+            const rect = state.canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            // 检测鼠标是否悬停在裂纹上
+            let foundCrack = false;
+            
+            for (let crack of state.cracks) {
+                const dist = Math.sqrt((x - crack.x) ** 2 + (y - crack.y) ** 2);
+                if (dist < 25) {
+                    foundCrack = true;
+                    showTooltip(e.clientX, e.clientY);
+                    break;
+                }
+            }
+            
+            if (!foundCrack) {
+                hideTooltip();
+            }
+        }
+
+        function handleCanvasTouchMove(e) {
+            if (!state.gameRunning) return;
+            e.preventDefault();
+            
+            const rect = state.canvas.getBoundingClientRect();
+            const touch = e.touches[0];
+            const x = touch.clientX - rect.left;
+            const y = touch.clientY - rect.top;
+            
+            let foundCrack = false;
+            
+            for (let crack of state.cracks) {
+                const dist = Math.sqrt((x - crack.x) ** 2 + (y - crack.y) ** 2);
+                if (dist < 25) {
+                    foundCrack = true;
+                    showTooltip(touch.clientX, touch.clientY);
+                    break;
+                }
+            }
+            
+            if (!foundCrack) {
+                hideTooltip();
+            }
+        }
+
+        function showTooltip(clientX, clientY) {
+            const tooltip = document.getElementById('crack-tooltip');
+            if (!tooltip) return;
+            
+            clearTimeout(state.tooltipTimer);
+            
+            tooltip.style.left = clientX + 10 + 'px';
+            tooltip.style.top = clientY - 30 + 'px';
+            tooltip.style.opacity = '1';
+            
+            state.tooltipTimer = setTimeout(() => {
+                hideTooltip();
+            }, 1500);
+        }
+
+        function hideTooltip() {
+            const tooltip = document.getElementById('crack-tooltip');
+            if (tooltip) {
+                tooltip.style.opacity = '0';
+            }
+            clearTimeout(state.tooltipTimer);
+        }
+
+        function spawnParticles(x, y, count, color) {
+            const rect = state.canvas.getBoundingClientRect();
+            
+            for (let i = 0; i < count; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = (rect.left + x) + 'px';
+                particle.style.top = (rect.top + y) + 'px';
+                particle.style.background = color || '#fff';
+                document.body.appendChild(particle);
+                
+                const vx = (Math.random() - 0.5) * 6;
+                const vy = (Math.random() - 0.5) * 6 - 2;
+                
+                let life = 1;
+                const animate = () => {
+                    life -= 0.02;
+                    if (life <= 0) {
+                        particle.remove();
+                        return;
+                    }
+                    
+                    const currentX = parseFloat(particle.style.left);
+                    const currentY = parseFloat(particle.style.top);
+                    particle.style.left = (currentX + vx) + 'px';
+                    particle.style.top = (currentY + vy + (1 - life) * 3) + 'px';
+                    particle.style.opacity = life;
+                    
+                    requestAnimationFrame(animate);
+                };
+                animate();
+            }
+        }
+
+        function triggerVictory(x, y, weakPoint) {
+            state.gameRunning = false;
+            clearInterval(state.interval);
+            
+            const depthInfo = weakPoint.depth === 'deep' ? '5米处' : '10米处';
+            updateHint(`🎯 精准打击！成功击穿${depthInfo}的临时修补点！`);
+            spawnParticles(x, y, 50, '#22c55e');
+            
+            setTimeout(() => {
+                endGame(true, weakPoint);
+            }, 1500);
+        }
+
+        function endGame(isVictory, data = null) {
+            state.gameRunning = false;
+            clearInterval(state.interval);
+            
+            const modal = document.getElementById('end-modal');
+            const content = document.getElementById('end-content');
+            
+            if (!modal || !content) return;
+            
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            
+            const intelCount = Object.values(state.intel).filter(Boolean).length;
+            const usedTime = 120 - state.timer;
+            
+            if (isVictory) {
+                const depthInfo = data.depth === 'deep' ? '5米处（颜色略深的光斑）' : '10米处';
+                
+                content.innerHTML = `
+                    <div class="text-center">
+                        <svg class="w-16 md:w-20 h-16 md:h-20 text-yellow-400 mx-auto mb-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                        </svg>
+                        <h2 class="text-2xl md:text-3xl font-bold text-white mb-2">战略突破成功！</h2>
+                        <p class="text-slate-300 mb-4 md:mb-6 text-sm md:text-base">你成功找到了C区${depthInfo}的薄弱点</p>
+                        
+                        <div class="bg-slate-700/50 rounded-lg p-3 md:p-4 mb-4 border border-slate-600">
+                            <h3 class="text-xs md:text-sm font-bold text-slate-300 uppercase mb-3">你的推理路径</h3>
+                            <div class="space-y-2 text-xs md:text-sm text-left">
+                                <div class="flex items-center gap-2 ${state.intel.archive ? 'text-green-400' : 'text-slate-500'}">
+                                    <svg class="w-4 h-4 md:w-5 md:h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                                    </svg>
+                                    <span>档案记录：锁定C区"5米和10米处"</span>
+                                </div>
+                                <div class="flex items-center gap-2 ${state.intel.sound ? 'text-green-400' : 'text-slate-500'}">
+                                    <svg class="w-4 h-4 md:w-5 md:h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                                    </svg>
+                                    <span>声纳探测：C区和D区异常</span>
+                                </div>
+                                <div class="flex items-center gap-2 ${state.intel.thermal ? 'text-green-400' : 'text-slate-500'}">
+                                    <svg class="w-4 h-4 md:w-5 md:h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                                    </svg>
+                                    <span>热成像：C区3块光斑，其中${depthInfo}颜色略深</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-gradient-to-r from-blue-900/50 to-cyan-900/50 border border-blue-500/30 rounded-lg p-3 md:p-4 mb-4 md:mb-6">
+                            <p class="text-blue-200 text-xs md:text-sm italic leading-relaxed">
+                                "在复杂的商业战场中，盲目试错是成本最高的策略。<br>
+                                真正的高手，善于<strong class="text-blue-300">整合多维信息、交叉验证</strong>，<br>
+                                直至找到那个<strong class="text-yellow-300">一击必中的战略杠杆点</strong>。"
+                            </p>
+                        </div>
+                        
+                        <div class="grid grid-cols-3 gap-2 md:gap-4 mb-4 md:mb-6 text-center">
+                            <div class="bg-slate-800/50 rounded p-2 md:p-3">
+                                <div class="text-xl md:text-2xl font-bold text-blue-400">${intelCount}/3</div>
+                                <div class="text-xs text-slate-400 mt-1">情报整合</div>
+                            </div>
+                            <div class="bg-slate-800/50 rounded p-2 md:p-3">
+                                <div class="text-xl md:text-2xl font-bold text-green-400">${usedTime}s</div>
+                                <div class="text-xs text-slate-400 mt-1">用时</div>
+                            </div>
+                            <div class="bg-slate-800/50 rounded p-2 md:p-3">
+                                <div class="text-xl md:text-2xl font-bold text-amber-400">${state.clickCount}</div>
+                                <div class="text-xs text-slate-400 mt-1">尝试次数</div>
+                            </div>
+                        </div>
+                        
+                        <button onclick="restartGame()" class="w-full bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 text-white font-bold py-3 px-6 rounded-lg transition-all transform hover:scale-105 shadow-lg text-sm md:text-base">
+                            再次挑战
+                        </button>
+                    </div>
+                `;
+            } else {
+                content.innerHTML = `
+                    <div class="text-center">
+                        <svg class="w-16 md:w-20 h-16 md:h-20 text-red-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                        </svg>
+                        <h2 class="text-2xl md:text-3xl font-bold text-white mb-2">任务失败</h2>
+                        <p class="text-slate-300 mb-4 md:mb-6 text-sm md:text-base">${data || '水位持续上涨，农田依然干旱'}</p>
+                        
+                        <div class="bg-slate-700/50 rounded-lg p-3 md:p-4 mb-4 md:mb-6 border border-slate-600">
+                            <h3 class="text-xs md:text-sm font-bold text-slate-300 mb-2">正确答案揭晓</h3>
+                            <p class="text-xs md:text-sm text-slate-300 leading-relaxed">
+                                真正的薄弱点隐藏在 <span class="text-yellow-400 font-bold">C区</span> 的
+                                <span class="text-blue-400 font-bold">"5米处"</span>（档案中提到的两个临时修补点之一）。<br><br>
+                                结合<strong>档案（5米和10米处）</strong> + 
+                                <strong>声纳探测（C区异常）</strong> + 
+                                <strong>热成像（5米处光斑颜色略深）</strong>，<br>
+                                就能精准定位到这个战略杠杆点。
+                            </p>
+                        </div>
+                        
+                        <div class="bg-blue-900/30 border border-blue-500/30 rounded-lg p-3 md:p-4 mb-4 md:mb-6">
+                            <p class="text-blue-200 text-xs md:text-sm italic">
+                                💡 提示：档案给出了两个位置，但只有通过热成像中"颜色略深"的光斑，才能确定5米处是真正的薄弱点。
+                            </p>
+                        </div>
+                        
+                        <div class="grid grid-cols-3 gap-2 mb-4 text-center text-xs">
+                            <div class="bg-slate-800/50 rounded p-2">
+                                <div class="text-lg font-bold text-slate-400">${intelCount}/3</div>
+                                <div class="text-slate-500">情报</div>
+                            </div>
+                            <div class="bg-slate-800/50 rounded p-2">
+                                <div class="text-lg font-bold text-slate-400">${usedTime}s</div>
+                                <div class="text-slate-500">用时</div>
+                            </div>
+                            <div class="bg-slate-800/50 rounded p-2">
+                                <div class="text-lg font-bold text-slate-400">${state.clickCount}</div>
+                                <div class="text-slate-500">尝试</div>
+                            </div>
+                        </div>
+                        
+                        <button onclick="restartGame()" class="w-full bg-slate-600 hover:bg-slate-500 text-white font-bold py-3 px-6 rounded-lg transition-all shadow-lg text-sm md:text-base">
+                            重新挑战
+                        </button>
+                    </div>
+                `;
+            }
+        }
+
+    </script>
+</body>
+</html>
